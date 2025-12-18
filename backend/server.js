@@ -1,12 +1,20 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import db from './db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const ODDS_API_KEY = '848c08ba37269c2c27ab631d2ccbe786';
+// Serve static frontend files in production
+app.use(express.static(path.join(__dirname, 'public')));
+
+const ODDS_API_KEY = process.env.ODDS_API_KEY || '848c08ba37269c2c27ab631d2ccbe786';
 
 // Helper to fetch from Odds API
 async function fetchOddsAPI(endpoint) {
@@ -68,7 +76,7 @@ app.post('/api/auth/login', (req, res) => {
 
 // Generate random invite code
 function generateInviteCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I, O, 0, 1 to avoid confusion
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 8; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
@@ -78,7 +86,6 @@ function generateInviteCode() {
 
 // === LEAGUE MANAGEMENT ===
 
-// Get user's league (or null if not in one)
 app.get('/api/my-league', (req, res) => {
   const userId = req.userId;
   if (!userId) return res.json({ league: null });
@@ -113,7 +120,6 @@ app.get('/api/my-league', (req, res) => {
   });
 });
 
-// Create a new league
 app.post('/api/leagues', (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Not logged in' });
@@ -121,7 +127,6 @@ app.post('/api/leagues', (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'League name required' });
 
-  // Check if user is already in a league
   const existing = db.prepare(`SELECT * FROM league_members WHERE user_id = ?`).get(userId);
   if (existing) return res.status(400).json({ error: 'You are already in a league' });
 
@@ -131,7 +136,6 @@ app.post('/api/leagues', (req, res) => {
     INSERT INTO leagues (name, invite_code, admin_id) VALUES (?, ?, ?)
   `).run(name, inviteCode, userId);
 
-  // Add creator as first member
   db.prepare(`INSERT INTO league_members (league_id, user_id) VALUES (?, ?)`).run(result.lastInsertRowid, userId);
 
   res.json({ 
@@ -141,7 +145,6 @@ app.post('/api/leagues', (req, res) => {
   });
 });
 
-// Join a league via invite code
 app.post('/api/leagues/join', (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Not logged in' });
@@ -149,21 +152,17 @@ app.post('/api/leagues/join', (req, res) => {
   const { inviteCode } = req.body;
   if (!inviteCode) return res.status(400).json({ error: 'Invite code required' });
 
-  // Check if user is already in a league
   const existing = db.prepare(`SELECT * FROM league_members WHERE user_id = ?`).get(userId);
   if (existing) return res.status(400).json({ error: 'You are already in a league' });
 
-  // Find league by invite code
   const league = db.prepare(`SELECT * FROM leagues WHERE invite_code = ?`).get(inviteCode.toUpperCase());
   if (!league) return res.status(404).json({ error: 'Invalid invite code' });
 
-  // Add user to league
   db.prepare(`INSERT INTO league_members (league_id, user_id) VALUES (?, ?)`).run(league.id, userId);
 
   res.json({ ok: true, leagueId: league.id, leagueName: league.name });
 });
 
-// Get league info by invite code (for preview before joining)
 app.get('/api/leagues/preview/:inviteCode', (req, res) => {
   const league = db.prepare(`SELECT id, name FROM leagues WHERE invite_code = ?`).get(req.params.inviteCode.toUpperCase());
   if (!league) return res.status(404).json({ error: 'Invalid invite code' });
@@ -173,26 +172,21 @@ app.get('/api/leagues/preview/:inviteCode', (req, res) => {
   res.json({ name: league.name, memberCount: memberCount.count });
 });
 
-// Get current week number
 app.get('/api/current-week', (req, res) => {
-  // Get the most recent week that has games
   const result = db.prepare(`SELECT MAX(week) as week FROM games`).get();
   res.json({ week: result?.week || 1 });
 });
 
-// Get list of all weeks with games
 app.get('/api/weeks', (req, res) => {
   const weeks = db.prepare(`SELECT DISTINCT week FROM games ORDER BY week`).all();
   res.json(weeks.map(w => w.week));
 });
 
-// Games
 app.get('/api/games/:week', (req, res) => {
   const games = db.prepare(`SELECT * FROM games WHERE week = ?`).all(req.params.week);
   res.json(games);
 });
 
-// Fetch live odds from The Odds API and update database
 app.post('/api/fetch-odds', async (req, res) => {
   try {
     const data = await fetchOddsAPI('sports/americanfootball_nfl/odds/?regions=us&markets=spreads,totals&oddsFormat=american');
@@ -201,13 +195,11 @@ app.post('/api/fetch-odds', async (req, res) => {
       return res.status(500).json({ error: 'Invalid response from Odds API', data });
     }
 
-    // Calculate current NFL week (rough estimate - you may want to adjust)
     const now = new Date();
-    const seasonStart = new Date('2025-09-04'); // NFL 2025 season start (approximate)
+    const seasonStart = new Date('2025-09-04');
     const weekNum = Math.ceil((now - seasonStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
     const currentWeek = Math.max(1, Math.min(weekNum, 18));
 
-    // Clear existing games for this week (but preserve picks)
     db.prepare(`DELETE FROM games WHERE week = ?`).run(currentWeek);
 
     const insertGame = db.prepare(`
@@ -223,23 +215,19 @@ app.post('/api/fetch-odds', async (req, res) => {
       const startTime = game.commence_time;
       const externalId = game.id;
 
-      // Find DraftKings odds (or first available bookmaker)
       const bookmaker = game.bookmakers?.find(b => b.key === 'draftkings') || game.bookmakers?.[0];
       if (!bookmaker) continue;
 
-      // Get spread
       const spreadMarket = bookmaker.markets?.find(m => m.key === 'spreads');
       const homeSpreadOutcome = spreadMarket?.outcomes?.find(o => shortName(o.name) === homeTeam);
       const spread = homeSpreadOutcome?.point;
 
-      // Get total
       const totalMarket = bookmaker.markets?.find(m => m.key === 'totals');
       const overOutcome = totalMarket?.outcomes?.find(o => o.name === 'Over');
       const total = overOutcome?.point;
 
       if (spread === undefined || total === undefined) continue;
 
-      // Determine favorite
       const favorite = spread < 0 ? homeTeam : awayTeam;
       const spreadAbs = Math.abs(spread);
 
@@ -254,7 +242,6 @@ app.post('/api/fetch-odds', async (req, res) => {
   }
 });
 
-// Fetch scores and update pick results
 app.post('/api/fetch-scores', async (req, res) => {
   try {
     const data = await fetchOddsAPI('sports/americanfootball_nfl/scores/?daysFrom=3');
@@ -276,7 +263,6 @@ app.post('/api/fetch-scores', async (req, res) => {
 
       if (homeScore === undefined || awayScore === undefined) continue;
 
-      // Update game scores
       const result = db.prepare(`
         UPDATE games SET home_score = ?, away_score = ? 
         WHERE external_id = ?
@@ -285,7 +271,6 @@ app.post('/api/fetch-scores', async (req, res) => {
       if (result.changes > 0) {
         gamesUpdated++;
 
-        // Get the game from DB to resolve picks
         const dbGame = db.prepare(`SELECT * FROM games WHERE external_id = ?`).get(game.id);
         if (dbGame) {
           resolvePicksForGame(dbGame, parseInt(homeScore), parseInt(awayScore));
@@ -306,9 +291,6 @@ function resolvePicksForGame(game, homeScore, awayScore) {
   const totalPoints = homeScore + awayScore;
   const homeMargin = homeScore - awayScore;
   
-  // Determine if home team covered
-  // If home is favorite, they need to win by more than spread
-  // If away is favorite, home needs to lose by less than spread (or win)
   const homeCovered = game.favorite === game.home_team
     ? homeMargin > game.spread
     : homeMargin > -game.spread;
@@ -336,12 +318,10 @@ function resolvePicksForGame(game, homeScore, awayScore) {
   }
 }
 
-// Picks
 app.get('/api/picks/:week', (req, res) => {
   const { week } = req.params;
   const userId = req.userId;
 
-  // Get user's league
   const membership = db.prepare(`SELECT league_id FROM league_members WHERE user_id = ?`).get(userId);
   if (!membership) return res.json([]);
 
@@ -397,7 +377,6 @@ app.delete('/api/picks/:week/:confidence', (req, res) => {
   res.json({ ok: true });
 });
 
-// Leaderboard
 app.get('/api/leaderboard/:leagueId', (req, res) => {
   const league = db.prepare(`SELECT * FROM leagues WHERE id = ?`).get(req.params.leagueId);
   
@@ -413,7 +392,6 @@ app.get('/api/leaderboard/:leagueId', (req, res) => {
   res.json({ league, scores });
 });
 
-// Seed data (for testing)
 app.post('/api/seed', (req, res) => {
   db.prepare(`DELETE FROM picks`).run();
   db.prepare(`DELETE FROM games`).run();
@@ -433,4 +411,10 @@ app.post('/api/seed', (req, res) => {
   res.json({ ok: true, message: 'Fake players created. Run /api/fetch-odds to get live games.' });
 });
 
-app.listen(3000, () => console.log('Server running on :3000'));
+// Catch-all: serve frontend for any non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on :${PORT}`));

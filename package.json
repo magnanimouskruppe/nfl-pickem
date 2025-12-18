@@ -1,0 +1,7 @@
+{
+  "name": "nfl-pickem",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build && mkdir -p ../backend/public && cp -r dist/* ../backend/public/",
+    "start": "cd backend && npm install && npm start"
+  }
+}
