@@ -22,7 +22,7 @@ async function fetchOddsAPI(endpoint) {
   return res.json();
 }
 
-// Team name mapping (Odds API uses full names, we use short names)
+// Team name mapping
 const teamNameMap = {
   'Arizona Cardinals': 'Cardinals',
   'Atlanta Falcons': 'Falcons',
@@ -68,9 +68,13 @@ app.use((req, res, next) => {
 });
 
 // Auth
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { id, email, name } = req.body;
-  db.prepare(`INSERT OR REPLACE INTO users (id, email, name) VALUES (?, ?, ?)`).run(id, email, name);
+  await db.query(
+    `INSERT INTO users (id, email, name) VALUES ($1, $2, $3)
+     ON CONFLICT (id) DO UPDATE SET email = $2, name = $3`,
+    [id, email, name]
+  );
   res.json({ ok: true });
 });
 
@@ -86,105 +90,117 @@ function generateInviteCode() {
 
 // === LEAGUE MANAGEMENT ===
 
-app.get('/api/my-league', (req, res) => {
+app.get('/api/my-league', async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.json({ league: null });
 
-  const membership = db.prepare(`
-    SELECT l.*, lm.user_id 
-    FROM leagues l
-    JOIN league_members lm ON l.id = lm.league_id
-    WHERE lm.user_id = ?
-  `).get(userId);
+  const membership = await db.query(
+    `SELECT l.*, lm.user_id 
+     FROM leagues l
+     JOIN league_members lm ON l.id = lm.league_id
+     WHERE lm.user_id = $1`,
+    [userId]
+  );
 
-  if (!membership) return res.json({ league: null });
+  if (membership.rows.length === 0) return res.json({ league: null });
 
-  const members = db.prepare(`
-    SELECT u.id, u.name, u.email
-    FROM users u
-    JOIN league_members lm ON u.id = lm.user_id
-    WHERE lm.league_id = ?
-  `).all(membership.id);
+  const league = membership.rows[0];
+  const members = await db.query(
+    `SELECT u.id, u.name, u.email
+     FROM users u
+     JOIN league_members lm ON u.id = lm.user_id
+     WHERE lm.league_id = $1`,
+    [league.id]
+  );
 
   res.json({ 
     league: {
-      id: membership.id,
-      name: membership.name,
-      inviteCode: membership.invite_code,
-      adminId: membership.admin_id,
-      dollarPerPoint: membership.dollar_per_point,
-      weeklyBonus: membership.weekly_bonus,
+      id: league.id,
+      name: league.name,
+      inviteCode: league.invite_code,
+      adminId: league.admin_id,
+      dollarPerPoint: league.dollar_per_point,
+      weeklyBonus: league.weekly_bonus,
     },
-    members,
-    isAdmin: membership.admin_id === userId
+    members: members.rows,
+    isAdmin: league.admin_id === userId
   });
 });
 
-app.post('/api/leagues', (req, res) => {
+app.post('/api/leagues', async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Not logged in' });
 
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'League name required' });
 
-  const existing = db.prepare(`SELECT * FROM league_members WHERE user_id = ?`).get(userId);
-  if (existing) return res.status(400).json({ error: 'You are already in a league' });
+  const existing = await db.query(`SELECT * FROM league_members WHERE user_id = $1`, [userId]);
+  if (existing.rows.length > 0) return res.status(400).json({ error: 'You are already in a league' });
 
   const inviteCode = generateInviteCode();
 
-  const result = db.prepare(`
-    INSERT INTO leagues (name, invite_code, admin_id) VALUES (?, ?, ?)
-  `).run(name, inviteCode, userId);
+  const result = await db.query(
+    `INSERT INTO leagues (name, invite_code, admin_id) VALUES ($1, $2, $3) RETURNING id`,
+    [name, inviteCode, userId]
+  );
 
-  db.prepare(`INSERT INTO league_members (league_id, user_id) VALUES (?, ?)`).run(result.lastInsertRowid, userId);
+  await db.query(
+    `INSERT INTO league_members (league_id, user_id) VALUES ($1, $2)`,
+    [result.rows[0].id, userId]
+  );
 
-  res.json({ 
-    ok: true, 
-    leagueId: result.lastInsertRowid,
-    inviteCode 
-  });
+  res.json({ ok: true, leagueId: result.rows[0].id, inviteCode });
 });
 
-app.post('/api/leagues/join', (req, res) => {
+app.post('/api/leagues/join', async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Not logged in' });
 
   const { inviteCode } = req.body;
   if (!inviteCode) return res.status(400).json({ error: 'Invite code required' });
 
-  const existing = db.prepare(`SELECT * FROM league_members WHERE user_id = ?`).get(userId);
-  if (existing) return res.status(400).json({ error: 'You are already in a league' });
+  const existing = await db.query(`SELECT * FROM league_members WHERE user_id = $1`, [userId]);
+  if (existing.rows.length > 0) return res.status(400).json({ error: 'You are already in a league' });
 
-  const league = db.prepare(`SELECT * FROM leagues WHERE invite_code = ?`).get(inviteCode.toUpperCase());
-  if (!league) return res.status(404).json({ error: 'Invalid invite code' });
+  const league = await db.query(`SELECT * FROM leagues WHERE invite_code = $1`, [inviteCode.toUpperCase()]);
+  if (league.rows.length === 0) return res.status(404).json({ error: 'Invalid invite code' });
 
-  db.prepare(`INSERT INTO league_members (league_id, user_id) VALUES (?, ?)`).run(league.id, userId);
+  await db.query(
+    `INSERT INTO league_members (league_id, user_id) VALUES ($1, $2)`,
+    [league.rows[0].id, userId]
+  );
 
-  res.json({ ok: true, leagueId: league.id, leagueName: league.name });
+  res.json({ ok: true, leagueId: league.rows[0].id, leagueName: league.rows[0].name });
 });
 
-app.get('/api/leagues/preview/:inviteCode', (req, res) => {
-  const league = db.prepare(`SELECT id, name FROM leagues WHERE invite_code = ?`).get(req.params.inviteCode.toUpperCase());
-  if (!league) return res.status(404).json({ error: 'Invalid invite code' });
+app.get('/api/leagues/preview/:inviteCode', async (req, res) => {
+  const league = await db.query(
+    `SELECT id, name FROM leagues WHERE invite_code = $1`,
+    [req.params.inviteCode.toUpperCase()]
+  );
+  if (league.rows.length === 0) return res.status(404).json({ error: 'Invalid invite code' });
 
-  const memberCount = db.prepare(`SELECT COUNT(*) as count FROM league_members WHERE league_id = ?`).get(league.id);
+  const memberCount = await db.query(
+    `SELECT COUNT(*) as count FROM league_members WHERE league_id = $1`,
+    [league.rows[0].id]
+  );
 
-  res.json({ name: league.name, memberCount: memberCount.count });
+  res.json({ name: league.rows[0].name, memberCount: parseInt(memberCount.rows[0].count) });
 });
 
-app.get('/api/current-week', (req, res) => {
-  const result = db.prepare(`SELECT MAX(week) as week FROM games`).get();
-  res.json({ week: result?.week || 1 });
+app.get('/api/current-week', async (req, res) => {
+  const result = await db.query(`SELECT MAX(week) as week FROM games`);
+  res.json({ week: result.rows[0]?.week || 1 });
 });
 
-app.get('/api/weeks', (req, res) => {
-  const weeks = db.prepare(`SELECT DISTINCT week FROM games ORDER BY week`).all();
-  res.json(weeks.map(w => w.week));
+app.get('/api/weeks', async (req, res) => {
+  const weeks = await db.query(`SELECT DISTINCT week FROM games ORDER BY week`);
+  res.json(weeks.rows.map(w => w.week));
 });
 
-app.get('/api/games/:week', (req, res) => {
-  const games = db.prepare(`SELECT * FROM games WHERE week = ?`).all(req.params.week);
-  res.json(games);
+app.get('/api/games/:week', async (req, res) => {
+  const games = await db.query(`SELECT * FROM games WHERE week = $1`, [req.params.week]);
+  res.json(games.rows);
 });
 
 app.post('/api/fetch-odds', async (req, res) => {
@@ -200,12 +216,7 @@ app.post('/api/fetch-odds', async (req, res) => {
     const weekNum = Math.ceil((now - seasonStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
     const currentWeek = Math.max(1, Math.min(weekNum, 18));
 
-    db.prepare(`DELETE FROM games WHERE week = ?`).run(currentWeek);
-
-    const insertGame = db.prepare(`
-      INSERT INTO games (week, away_team, home_team, favorite, spread, over_under, start_time, external_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    await db.query(`DELETE FROM games WHERE week = $1`, [currentWeek]);
 
     let gamesAdded = 0;
 
@@ -231,7 +242,11 @@ app.post('/api/fetch-odds', async (req, res) => {
       const favorite = spread < 0 ? homeTeam : awayTeam;
       const spreadAbs = Math.abs(spread);
 
-      insertGame.run(currentWeek, awayTeam, homeTeam, favorite, spreadAbs, total, startTime, externalId);
+      await db.query(
+        `INSERT INTO games (week, away_team, home_team, favorite, spread, over_under, start_time, external_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [currentWeek, awayTeam, homeTeam, favorite, spreadAbs, total, startTime, externalId]
+      );
       gamesAdded++;
     }
 
@@ -263,17 +278,17 @@ app.post('/api/fetch-scores', async (req, res) => {
 
       if (homeScore === undefined || awayScore === undefined) continue;
 
-      const result = db.prepare(`
-        UPDATE games SET home_score = ?, away_score = ? 
-        WHERE external_id = ?
-      `).run(parseInt(homeScore), parseInt(awayScore), game.id);
+      const result = await db.query(
+        `UPDATE games SET home_score = $1, away_score = $2 WHERE external_id = $3`,
+        [parseInt(homeScore), parseInt(awayScore), game.id]
+      );
 
-      if (result.changes > 0) {
+      if (result.rowCount > 0) {
         gamesUpdated++;
 
-        const dbGame = db.prepare(`SELECT * FROM games WHERE external_id = ?`).get(game.id);
-        if (dbGame) {
-          resolvePicksForGame(dbGame, parseInt(homeScore), parseInt(awayScore));
+        const dbGame = await db.query(`SELECT * FROM games WHERE external_id = $1`, [game.id]);
+        if (dbGame.rows[0]) {
+          await resolvePicksForGame(dbGame.rows[0], parseInt(homeScore), parseInt(awayScore));
         }
       }
     }
@@ -285,8 +300,11 @@ app.post('/api/fetch-scores', async (req, res) => {
   }
 });
 
-function resolvePicksForGame(game, homeScore, awayScore) {
-  const picks = db.prepare(`SELECT * FROM picks WHERE game_id = ? AND correct IS NULL`).all(game.id);
+async function resolvePicksForGame(game, homeScore, awayScore) {
+  const picks = await db.query(
+    `SELECT * FROM picks WHERE game_id = $1 AND correct IS NULL`,
+    [game.id]
+  );
   
   const totalPoints = homeScore + awayScore;
   const homeMargin = homeScore - awayScore;
@@ -295,7 +313,7 @@ function resolvePicksForGame(game, homeScore, awayScore) {
     ? homeMargin > game.spread
     : homeMargin > -game.spread;
 
-  for (const pick of picks) {
+  for (const pick of picks.rows) {
     let correct = null;
 
     if (pick.pick_type === 'spread') {
@@ -313,30 +331,34 @@ function resolvePicksForGame(game, homeScore, awayScore) {
     }
 
     if (correct !== null) {
-      db.prepare(`UPDATE picks SET correct = ? WHERE id = ?`).run(correct, pick.id);
+      await db.query(`UPDATE picks SET correct = $1 WHERE id = $2`, [correct, pick.id]);
     }
   }
 }
 
-app.get('/api/picks/:week', (req, res) => {
+app.get('/api/picks/:week', async (req, res) => {
   const { week } = req.params;
   const userId = req.userId;
 
-  const membership = db.prepare(`SELECT league_id FROM league_members WHERE user_id = ?`).get(userId);
-  if (!membership) return res.json([]);
+  const membership = await db.query(
+    `SELECT league_id FROM league_members WHERE user_id = $1`,
+    [userId]
+  );
+  if (membership.rows.length === 0) return res.json([]);
 
-  const picks = db.prepare(`
-    SELECT p.*, u.name as user_name, g.start_time
-    FROM picks p
-    JOIN users u ON p.user_id = u.id
-    JOIN games g ON p.game_id = g.id
-    JOIN league_members lm ON p.user_id = lm.user_id
-    WHERE p.week = ? AND lm.league_id = ?
-  `).all(week, membership.league_id);
+  const picks = await db.query(
+    `SELECT p.*, u.name as user_name, g.start_time
+     FROM picks p
+     JOIN users u ON p.user_id = u.id
+     JOIN games g ON p.game_id = g.id
+     JOIN league_members lm ON p.user_id = lm.user_id
+     WHERE p.week = $1 AND lm.league_id = $2`,
+    [week, membership.rows[0].league_id]
+  );
   
   const now = new Date().toISOString();
   
-  const filtered = picks.map(p => {
+  const filtered = picks.rows.map(p => {
     if (p.user_id === userId || p.start_time <= now) return p;
     return { ...p, pick_type: null, pick_value: null, game_id: null };
   });
@@ -344,71 +366,64 @@ app.get('/api/picks/:week', (req, res) => {
   res.json(filtered);
 });
 
-app.post('/api/picks', (req, res) => {
+app.post('/api/picks', async (req, res) => {
   const { gameId, week, pickType, pickValue, confidence } = req.body;
   const userId = req.userId;
   
   if (!userId) return res.status(401).json({ error: 'Not logged in' });
   
-  const game = db.prepare(`SELECT * FROM games WHERE id = ?`).get(gameId);
-  if (!game) {
+  const game = await db.query(`SELECT * FROM games WHERE id = $1`, [gameId]);
+  if (game.rows.length === 0) {
     return res.status(400).json({ error: 'Game not found' });
   }
-  if (new Date(game.start_time) <= new Date()) {
+  if (new Date(game.rows[0].start_time) <= new Date()) {
     return res.status(400).json({ error: 'Game already started' });
   }
   
-  db.prepare(`
-    INSERT INTO picks (user_id, game_id, week, pick_type, pick_value, confidence)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(user_id, week, confidence) DO UPDATE SET
-      game_id = excluded.game_id,
-      pick_type = excluded.pick_type,
-      pick_value = excluded.pick_value
-  `).run(userId, gameId, week, pickType, pickValue, confidence);
+  await db.query(
+    `INSERT INTO picks (user_id, game_id, week, pick_type, pick_value, confidence)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (user_id, week, confidence) DO UPDATE SET
+       game_id = $2,
+       pick_type = $4,
+       pick_value = $5`,
+    [userId, gameId, week, pickType, pickValue, confidence]
+  );
   
   res.json({ ok: true });
 });
 
-app.delete('/api/picks/:week/:confidence', (req, res) => {
+app.delete('/api/picks/:week/:confidence', async (req, res) => {
   const { week, confidence } = req.params;
-  db.prepare(`DELETE FROM picks WHERE user_id = ? AND week = ? AND confidence = ?`)
-    .run(req.userId, week, confidence);
+  await db.query(
+    `DELETE FROM picks WHERE user_id = $1 AND week = $2 AND confidence = $3`,
+    [req.userId, week, confidence]
+  );
   res.json({ ok: true });
 });
 
-app.get('/api/leaderboard/:leagueId', (req, res) => {
-  const league = db.prepare(`SELECT * FROM leagues WHERE id = ?`).get(req.params.leagueId);
+app.get('/api/leaderboard/:leagueId', async (req, res) => {
+  const league = await db.query(`SELECT * FROM leagues WHERE id = $1`, [req.params.leagueId]);
   
-  const scores = db.prepare(`
-    SELECT u.id, u.name, p.week, SUM(CASE WHEN p.correct = 1 THEN p.confidence ELSE 0 END) as points
-    FROM users u
-    JOIN league_members lm ON u.id = lm.user_id
-    LEFT JOIN picks p ON u.id = p.user_id
-    WHERE lm.league_id = ?
-    GROUP BY u.id, p.week
-  `).all(req.params.leagueId);
+  const scores = await db.query(
+    `SELECT u.id, u.name, p.week, SUM(CASE WHEN p.correct = 1 THEN p.confidence ELSE 0 END) as points
+     FROM users u
+     JOIN league_members lm ON u.id = lm.user_id
+     LEFT JOIN picks p ON u.id = p.user_id
+     WHERE lm.league_id = $1
+     GROUP BY u.id, u.name, p.week`,
+    [req.params.leagueId]
+  );
   
-  res.json({ league, scores });
+  res.json({ league: league.rows[0], scores: scores.rows });
 });
 
-app.post('/api/seed', (req, res) => {
-  db.prepare(`DELETE FROM picks`).run();
-  db.prepare(`DELETE FROM games`).run();
-  db.prepare(`DELETE FROM users WHERE id LIKE 'fake-%'`).run();
+app.post('/api/seed', async (req, res) => {
+  await db.query(`DELETE FROM picks`);
+  await db.query(`DELETE FROM games`);
+  await db.query(`DELETE FROM users WHERE id LIKE 'fake-%'`);
   
-  db.prepare(`INSERT OR IGNORE INTO leagues (id, name) VALUES (1, 'Test League')`).run();
-  
-  const fakePlayers = [
-    { id: 'fake-player-b', email: 'playerb@test.com', name: 'Mike Johnson' },
-    { id: 'fake-player-c', email: 'playerc@test.com', name: 'Sarah Williams' },
-    { id: 'fake-player-d', email: 'playerd@test.com', name: 'Chris Davis' },
-  ];
-  
-  const insertUser = db.prepare(`INSERT OR REPLACE INTO users (id, email, name) VALUES (?, ?, ?)`);
-  fakePlayers.forEach(p => insertUser.run(p.id, p.email, p.name));
-  
-  res.json({ ok: true, message: 'Fake players created. Run /api/fetch-odds to get live games.' });
+  res.json({ ok: true, message: 'Data cleared. Run /api/fetch-odds to get live games.' });
 });
 
 // Catch-all: serve frontend for any non-API routes
