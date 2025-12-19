@@ -22,26 +22,27 @@ async function fetchOddsAPI(endpoint) {
   return res.json();
 }
 
-// 2024-25 NFL season week start dates (Tuesday of each week)
+// 2025-26 NFL season week start dates (Wednesday before games start)
+// Season runs Sep 4, 2025 - Jan 4, 2026
 const NFL_WEEK_STARTS = {
-  1: '2024-09-03',
-  2: '2024-09-10',
-  3: '2024-09-17',
-  4: '2024-09-24',
-  5: '2024-10-01',
-  6: '2024-10-08',
-  7: '2024-10-15',
-  8: '2024-10-22',
-  9: '2024-10-29',
-  10: '2024-11-05',
-  11: '2024-11-12',
-  12: '2024-11-19',
-  13: '2024-11-26',
-  14: '2024-12-03',
-  15: '2024-12-10',
-  16: '2024-12-17',
-  17: '2024-12-24',
-  18: '2024-12-31',
+  1: '2025-09-03',
+  2: '2025-09-10',
+  3: '2025-09-17',
+  4: '2025-09-24',
+  5: '2025-10-01',
+  6: '2025-10-08',
+  7: '2025-10-15',
+  8: '2025-10-22',
+  9: '2025-10-29',
+  10: '2025-11-05',
+  11: '2025-11-12',
+  12: '2025-11-19',
+  13: '2025-11-26',
+  14: '2025-12-03',
+  15: '2025-12-10',
+  16: '2025-12-17',
+  17: '2025-12-24',
+  18: '2025-12-31',
 };
 
 // Determine NFL week from a game's start time
@@ -50,7 +51,7 @@ function getWeekFromDate(gameDate) {
   
   // Go through weeks in reverse to find which week this game belongs to
   for (let week = 18; week >= 1; week--) {
-    const weekStart = new Date(NFL_WEEK_STARTS[week]);
+    const weekStart = new Date(NFL_WEEK_STARTS[week] + 'T00:00:00Z');
     if (date >= weekStart) {
       return week;
     }
