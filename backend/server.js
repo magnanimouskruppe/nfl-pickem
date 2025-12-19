@@ -22,6 +22,42 @@ async function fetchOddsAPI(endpoint) {
   return res.json();
 }
 
+// 2024-25 NFL season week start dates (Tuesday of each week)
+const NFL_WEEK_STARTS = {
+  1: '2024-09-03',
+  2: '2024-09-10',
+  3: '2024-09-17',
+  4: '2024-09-24',
+  5: '2024-10-01',
+  6: '2024-10-08',
+  7: '2024-10-15',
+  8: '2024-10-22',
+  9: '2024-10-29',
+  10: '2024-11-05',
+  11: '2024-11-12',
+  12: '2024-11-19',
+  13: '2024-11-26',
+  14: '2024-12-03',
+  15: '2024-12-10',
+  16: '2024-12-17',
+  17: '2024-12-24',
+  18: '2024-12-31',
+};
+
+// Determine NFL week from a game's start time
+function getWeekFromDate(gameDate) {
+  const date = new Date(gameDate);
+  
+  // Go through weeks in reverse to find which week this game belongs to
+  for (let week = 18; week >= 1; week--) {
+    const weekStart = new Date(NFL_WEEK_STARTS[week]);
+    if (date >= weekStart) {
+      return week;
+    }
+  }
+  return 1; // Default to week 1 if before season
+}
+
 // Team name mapping
 const teamNameMap = {
   'Arizona Cardinals': 'Cardinals',
@@ -189,8 +225,9 @@ app.get('/api/leagues/preview/:inviteCode', async (req, res) => {
 });
 
 app.get('/api/current-week', async (req, res) => {
-  const result = await db.query(`SELECT MAX(week) as week FROM games`);
-  res.json({ week: result.rows[0]?.week || 1 });
+  // Return the current NFL week based on today's date
+  const currentWeek = getWeekFromDate(new Date());
+  res.json({ week: currentWeek });
 });
 
 app.get('/api/weeks', async (req, res) => {
@@ -199,7 +236,7 @@ app.get('/api/weeks', async (req, res) => {
 });
 
 app.get('/api/games/:week', async (req, res) => {
-  const games = await db.query(`SELECT * FROM games WHERE week = $1`, [req.params.week]);
+  const games = await db.query(`SELECT * FROM games WHERE week = $1 ORDER BY start_time`, [req.params.week]);
   res.json(games.rows);
 });
 
@@ -211,19 +248,18 @@ app.post('/api/fetch-odds', async (req, res) => {
       return res.status(500).json({ error: 'Invalid response from Odds API', data });
     }
 
-    const now = new Date();
-    const seasonStart = new Date('2025-09-04');
-    const weekNum = Math.ceil((now - seasonStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
-    const currentWeek = Math.max(1, Math.min(weekNum, 18));
+    // Track which weeks we're updating
+    const weeksToUpdate = new Set();
+    const gamesToInsert = [];
 
-    await db.query(`DELETE FROM games WHERE week = $1`, [currentWeek]);
-
-    let gamesAdded = 0;
-
+    // First pass: determine weeks and prepare game data
     for (const game of data) {
+      const startTime = game.commence_time;
+      const week = getWeekFromDate(startTime);
+      weeksToUpdate.add(week);
+
       const homeTeam = shortName(game.home_team);
       const awayTeam = shortName(game.away_team);
-      const startTime = game.commence_time;
       const externalId = game.id;
 
       const bookmaker = game.bookmakers?.find(b => b.key === 'draftkings') || game.bookmakers?.[0];
@@ -242,15 +278,41 @@ app.post('/api/fetch-odds', async (req, res) => {
       const favorite = spread < 0 ? homeTeam : awayTeam;
       const spreadAbs = Math.abs(spread);
 
+      gamesToInsert.push({
+        week,
+        awayTeam,
+        homeTeam,
+        favorite,
+        spreadAbs,
+        total,
+        startTime,
+        externalId
+      });
+    }
+
+    // Delete existing games for the weeks we're updating
+    for (const week of weeksToUpdate) {
+      await db.query(`DELETE FROM games WHERE week = $1`, [week]);
+    }
+
+    // Insert all games
+    let gamesAdded = 0;
+    for (const game of gamesToInsert) {
       await db.query(
         `INSERT INTO games (week, away_team, home_team, favorite, spread, over_under, start_time, external_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [currentWeek, awayTeam, homeTeam, favorite, spreadAbs, total, startTime, externalId]
+        [game.week, game.awayTeam, game.homeTeam, game.favorite, game.spreadAbs, game.total, game.startTime, game.externalId]
       );
       gamesAdded++;
     }
 
-    res.json({ ok: true, week: currentWeek, gamesAdded });
+    // Return summary by week
+    const weekSummary = {};
+    for (const game of gamesToInsert) {
+      weekSummary[game.week] = (weekSummary[game.week] || 0) + 1;
+    }
+
+    res.json({ ok: true, gamesAdded, weekSummary });
   } catch (err) {
     console.error('Error fetching odds:', err);
     res.status(500).json({ error: err.message });
