@@ -363,7 +363,7 @@ function LeagueView({ league, members, isAdmin }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-500">Scoring</label>
-            <div className="text-lg">${league.dollarPerPoint} per point • ${league.weeklyBonus} weekly bonus</div>
+            <div className="text-lg">${league.dollarPerPoint} per point â€¢ ${league.weeklyBonus} weekly bonus</div>
           </div>
 
           <div>
@@ -413,8 +413,8 @@ function GamecenterView({ games, allPicks, users, currentUserId, week }) {
     const underdog = game.favorite === game.home_team ? game.away_team : game.home_team;
     if (pickType === 'spread' && pickValue === 'fav') return `${game.favorite} -${game.spread}`;
     if (pickType === 'spread' && pickValue === 'dog') return `${underdog} +${game.spread}`;
-    if (pickType === 'total' && pickValue === 'over') return `O ${game.over_under}`;
-    if (pickType === 'total' && pickValue === 'under') return `U ${game.over_under}`;
+    if (pickType === 'total' && pickValue === 'over') return `${game.away_team}/${game.home_team} O ${game.over_under}`;
+    if (pickType === 'total' && pickValue === 'under') return `${game.away_team}/${game.home_team} U ${game.over_under}`;
     return '';
   };
 
@@ -581,6 +581,11 @@ function GamesView({ games, week }) {
     return { away: favSpread, home: underdogSpread };
   };
 
+  const formatScore = (game) => {
+    if (game.away_score === null || game.home_score === null) return null;
+    return `${game.away_team} ${game.away_score}, ${game.home_team} ${game.home_score}`;
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Week {week} Games</h2>
@@ -591,11 +596,13 @@ function GamesView({ games, week }) {
               <th className="text-left py-3 px-2">Matchup</th>
               <th className="text-center py-3 px-2">Spread</th>
               <th className="text-center py-3 px-2">Over/Under</th>
+              <th className="text-center py-3 px-2">Score</th>
             </tr>
           </thead>
           <tbody>
             {games.map((game) => {
               const spreads = formatSpread(game);
+              const score = formatScore(game);
               return (
                 <tr key={game.id} className="border-b border-gray-100">
                   <td className="py-3 px-2">
@@ -615,6 +622,13 @@ function GamesView({ games, week }) {
                       <span>O {game.over_under}</span>
                       <span>U {game.over_under}</span>
                     </div>
+                  </td>
+                  <td className="text-center py-3 px-2">
+                    {score ? (
+                      <span className="font-medium">{score}</span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                 </tr>
               );
@@ -829,10 +843,10 @@ function OtherPicksView({ games, allPicks, users, currentUserId }) {
                       <div className="font-semibold text-sm">{game?.away_team} @ {game?.home_team}</div>
                       <div className={`font-bold ${textColor}`}>{getPickLabel(game, pick.pick_type, pick.pick_value)}</div>
                       {pick.correct === 1 && (
-                        <div className="text-green-600 font-bold text-sm mt-1">✓ Won - {conf} points</div>
+                        <div className="text-green-600 font-bold text-sm mt-1">âœ“ Won - {conf} points</div>
                       )}
                       {pick.correct === 0 && (
-                        <div className="text-red-600 font-bold text-sm mt-1">✗ Lost - 0 points</div>
+                        <div className="text-red-600 font-bold text-sm mt-1">âœ— Lost - 0 points</div>
                       )}
                     </div>
                   )}
@@ -928,7 +942,7 @@ function ResultsView() {
         </div>
         
         <div className="text-sm text-gray-600 mb-4">
-          ${mockData.dollarPerPoint} per point • ${mockData.weeklyBonus} weekly bonus per player
+          ${mockData.dollarPerPoint} per point â€¢ ${mockData.weeklyBonus} weekly bonus per player
         </div>
         
         <table className="w-full">
