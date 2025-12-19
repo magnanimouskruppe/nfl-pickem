@@ -128,53 +128,41 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className="min-h-screen bg-gray-100 p-2 sm:p-4">
       <div className="max-w-6xl mx-auto">
-        <header className="bg-white rounded-lg shadow mb-6 p-6">
-          <div className="flex justify-between items-center mb-4">
+        <header className="bg-white rounded-lg shadow mb-4 sm:mb-6 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 mb-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{league.name}</h1>
             <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-gray-900">{league.name}</h1>
-              {availableWeeks.length > 0 && (
-                <select 
-                  className="border rounded px-3 py-1 text-lg font-medium"
-                  value={currentWeek}
-                  onChange={(e) => setCurrentWeek(parseInt(e.target.value))}
-                >
-                  {availableWeeks.map(w => (
-                    <option key={w} value={w}>Week {w}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600">{user.displayName}</span>
+              <span className="text-gray-600 text-sm sm:text-base">{user.displayName}</span>
               <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Logout</button>
             </div>
           </div>
-          <nav className="flex flex-wrap gap-2">
+          <nav className="flex flex-wrap gap-1 sm:gap-2">
             {[
-              { id: 'games', label: "This Week's Games" },
-              { id: 'gamecenter', label: 'Weekly Gamecenter' },
-              { id: 'myPicks', label: 'My Picks' },
-              { id: 'otherPicks', label: "Other Player's Picks" },
-              { id: 'results', label: 'Season Results' },
-              { id: 'league', label: 'League' },
+              { id: 'games', label: "Games", fullLabel: "This Week's Games" },
+              { id: 'gamecenter', label: 'Gamecenter', fullLabel: 'Weekly Gamecenter' },
+              { id: 'myPicks', label: 'My Picks', fullLabel: 'My Picks' },
+              { id: 'otherPicks', label: 'Others', fullLabel: "Other Player's Picks" },
+              { id: 'results', label: 'Results', fullLabel: 'Season Results' },
+              { id: 'league', label: 'League', fullLabel: 'League' },
             ].map((tab) => (
               <button key={tab.id} onClick={() => setView(tab.id)}
-                className={`px-4 py-2 rounded-lg font-medium ${view === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                {tab.label}
+                className={`px-2 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium ${view === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                <span className="sm:hidden">{tab.label}</span>
+                <span className="hidden sm:inline">{tab.fullLabel}</span>
               </button>
             ))}
           </nav>
         </header>
 
-        {view === 'games' && <GamesView games={games} week={currentWeek} />}
-        {view === 'gamecenter' && <GamecenterView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} week={currentWeek} />}
+        {view === 'games' && <GamesView games={games} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />}
+        {view === 'gamecenter' && <GamecenterView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />}
         {view === 'myPicks' && (
-          <MyPicksView games={games} myPicks={myPicks} onPick={handlePick} onClear={clearPick} week={currentWeek} />
+          <MyPicksView games={games} myPicks={myPicks} onPick={handlePick} onClear={clearPick} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />
         )}
         {view === 'otherPicks' && (
-          <OtherPicksView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} />
+          <OtherPicksView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />
         )}
         {view === 'results' && <ResultsView />}
         {view === 'league' && <LeagueView league={league} members={leagueMembers} isAdmin={isAdmin} />}
@@ -407,7 +395,7 @@ function LeagueView({ league, members, isAdmin }) {
   );
 }
 
-function GamecenterView({ games, allPicks, users, currentUserId, week }) {
+function GamecenterView({ games, allPicks, users, currentUserId, week, availableWeeks, onWeekChange }) {
   const getPickLabel = (game, pickType, pickValue) => {
     if (!game) return '';
     const underdog = game.favorite === game.home_team ? game.away_team : game.home_team;
@@ -463,8 +451,21 @@ function GamecenterView({ games, allPicks, users, currentUserId, week }) {
   return (
     <div className="space-y-6">
       {/* Chart */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Week {week} Scoreboard</h2>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Week {week} Scoreboard</h2>
+          {availableWeeks.length > 0 && (
+            <select 
+              className="border rounded px-3 py-1 text-base font-medium w-fit"
+              value={week}
+              onChange={(e) => onWeekChange(parseInt(e.target.value))}
+            >
+              {availableWeeks.map(w => (
+                <option key={w} value={w}>Week {w}</option>
+              ))}
+            </select>
+          )}
+        </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData}>
             <XAxis dataKey="name" />
@@ -478,7 +479,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week }) {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow p-6 overflow-x-auto">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b-2 border-gray-200">
@@ -571,7 +572,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week }) {
   );
 }
 
-function GamesView({ games, week }) {
+function GamesView({ games, week, availableWeeks, onWeekChange }) {
   const formatSpread = (game) => {
     const underdogSpread = `+${game.spread}`;
     const favSpread = `-${game.spread}`;
@@ -587,8 +588,21 @@ function GamesView({ games, week }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Week {week} Games</h2>
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <h2 className="text-xl font-bold text-gray-900">Week {week} Games</h2>
+        {availableWeeks.length > 0 && (
+          <select 
+            className="border rounded px-3 py-1 text-base font-medium w-fit"
+            value={week}
+            onChange={(e) => onWeekChange(parseInt(e.target.value))}
+          >
+            {availableWeeks.map(w => (
+              <option key={w} value={w}>Week {w}</option>
+            ))}
+          </select>
+        )}
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -640,7 +654,7 @@ function GamesView({ games, week }) {
   );
 }
 
-function MyPicksView({ games, myPicks, onPick, onClear, week }) {
+function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, onWeekChange }) {
   const [selections, setSelections] = useState({});
 
   const getPickLabel = (game, pickType, pickValue) => {
@@ -677,10 +691,23 @@ function MyPicksView({ games, myPicks, onPick, onClear, week }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Week {week} Picks</h2>
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <h2 className="text-xl font-bold text-gray-900">Week {week} Picks</h2>
+        {availableWeeks.length > 0 && (
+          <select 
+            className="border rounded px-3 py-1 text-base font-medium w-fit"
+            value={week}
+            onChange={(e) => onWeekChange(parseInt(e.target.value))}
+          >
+            {availableWeeks.map(w => (
+              <option key={w} value={w}>Week {w}</option>
+            ))}
+          </select>
+        )}
+      </div>
       
-      <div className="border-b-2 border-gray-200 pb-3 mb-4">
+      <div className="border-b-2 border-gray-200 pb-3 mb-4 hidden sm:block">
         <div className="flex items-center">
           <div className="w-16 text-center">
             <div className="text-sm font-bold text-gray-700">Points</div>
@@ -754,7 +781,7 @@ function MyPicksView({ games, myPicks, onPick, onClear, week }) {
   );
 }
 
-function OtherPicksView({ games, allPicks, users, currentUserId }) {
+function OtherPicksView({ games, allPicks, users, currentUserId, week, availableWeeks, onWeekChange }) {
   const [selectedPlayer, setSelectedPlayer] = useState(currentUserId);
 
   const getPickLabel = (game, pickType, pickValue) => {
@@ -774,21 +801,34 @@ function OtherPicksView({ games, allPicks, users, currentUserId }) {
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Weekly Picks</h2>
-        <select 
-          className="border rounded px-3 py-1"
-          value={selectedPlayer}
-          onChange={(e) => setSelectedPlayer(e.target.value)}
-        >
-          {users.map(u => (
-            <option key={u.id} value={u.id}>{u.name}{u.id === currentUserId ? ' (me)' : ''}</option>
-          ))}
-        </select>
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+        <h2 className="text-xl font-bold text-gray-900">Week {week} Picks</h2>
+        <div className="flex flex-wrap gap-2">
+          {availableWeeks.length > 0 && (
+            <select 
+              className="border rounded px-3 py-1 text-base font-medium"
+              value={week}
+              onChange={(e) => onWeekChange(parseInt(e.target.value))}
+            >
+              {availableWeeks.map(w => (
+                <option key={w} value={w}>Week {w}</option>
+              ))}
+            </select>
+          )}
+          <select 
+            className="border rounded px-3 py-1"
+            value={selectedPlayer}
+            onChange={(e) => setSelectedPlayer(e.target.value)}
+          >
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name}{u.id === currentUserId ? ' (me)' : ''}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="border-b-2 border-gray-200 pb-3 mb-4">
+      <div className="border-b-2 border-gray-200 pb-3 mb-4 hidden sm:block">
         <div className="flex items-center">
           <div className="w-16 text-center">
             <div className="text-sm font-bold text-gray-700">Points</div>
