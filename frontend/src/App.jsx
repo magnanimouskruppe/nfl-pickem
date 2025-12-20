@@ -5,7 +5,7 @@ import { auth, loginWithGoogle, logout } from './firebase';
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('games');
+  const [view, setView] = useState('howItWorks');
   const [games, setGames] = useState([]);
   const [allPicks, setAllPicks] = useState([]);
   const [myPicks, setMyPicks] = useState({});
@@ -140,6 +140,7 @@ export default function App() {
           </div>
           <nav className="flex flex-wrap gap-1 sm:gap-2">
             {[
+              { id: 'howItWorks', label: 'How It Works', fullLabel: 'How It Works' },
               { id: 'games', label: "Games", fullLabel: "This Week's Games" },
               { id: 'gamecenter', label: 'Gamecenter', fullLabel: 'Weekly Gamecenter' },
               { id: 'myPicks', label: 'My Picks', fullLabel: 'My Picks' },
@@ -156,6 +157,7 @@ export default function App() {
           </nav>
         </header>
 
+        {view === 'howItWorks' && <HowItWorksView league={league} />}
         {view === 'games' && <GamesView games={games} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />}
         {view === 'gamecenter' && <GamecenterView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />}
         {view === 'myPicks' && (
@@ -164,7 +166,7 @@ export default function App() {
         {view === 'otherPicks' && (
           <OtherPicksView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />
         )}
-        {view === 'results' && <ResultsView />}
+        {view === 'results' && <ResultsView league={league} leagueMembers={leagueMembers} availableWeeks={availableWeeks} />}
         {view === 'league' && <LeagueView league={league} members={leagueMembers} isAdmin={isAdmin} onLeagueUpdate={loadLeague} />}
       </div>
     </div>
@@ -1010,26 +1012,125 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
   );
 }
 
-function ResultsView() {
-  const mockData = {
-    currentWeek: 4,
-    dollarPerPoint: 2,
-    weeklyBonus: 5,
-    players: [
-      { id: 1, name: "Josh Milian", weeklyScores: [22, 31, 18, 29] },
-      { id: 2, name: "Player B", weeklyScores: [32, 25, 34, 27] },
-      { id: 3, name: "Player C", weeklyScores: [26, 28, 22, 31] },
-      { id: 4, name: "Player D", weeklyScores: [20, 30, 26, 25] },
-    ]
-  };
+function HowItWorksView({ league }) {
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">How It Works</h2>
+        
+        <div className="space-y-6">
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-2">The Basics</h3>
+            <p className="text-gray-600">
+              Each week, you make <strong>10 picks</strong> against the spread or on over/unders. 
+              You assign each pick a <strong>confidence level from 1-10</strong> (each number used exactly once). 
+              If your pick is correct, you earn that many points.
+            </p>
+          </div>
 
-  const [selectedWeek, setSelectedWeek] = useState(mockData.currentWeek);
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-2">Making Picks</h3>
+            <ul className="text-gray-600 space-y-1">
+              <li>• <strong>Spread picks:</strong> Pick the favorite to win by more than the spread, or the underdog to cover</li>
+              <li>• <strong>Over/Under picks:</strong> Pick whether the total points scored will be over or under the line</li>
+              <li>• You can make up to 2 picks per game (one spread, one over/under)</li>
+              <li>• Picks lock when the game starts</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-2">Scoring</h3>
+            <ul className="text-gray-600 space-y-1">
+              <li>• Correct pick = confidence points earned (1-10)</li>
+              <li>• Wrong pick = 0 points</li>
+              <li>• Maximum possible per week = 55 points (10+9+8+...+1)</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-2">Weekly Payouts</h3>
+            <div className="bg-blue-50 rounded-lg p-4">
+              <ul className="text-gray-700 space-y-1">
+                <li>• <strong>Points payout:</strong> ${league.dollarPerPoint} for every point above/below the weekly average</li>
+                <li>• <strong>Weekly bonus:</strong> Winner(s) collect ${league.weeklyBonus} from each non-winner</li>
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-800 mb-2">Example</h3>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-gray-600">
+              <p>
+                <span className="text-green-600">✓</span> You pick <strong>Chiefs -3.5</strong> with <strong>10 confidence</strong>. 
+                Chiefs win by 7. <span className="text-green-600 font-semibold">You earn 10 points!</span>
+              </p>
+              <p>
+                <span className="text-red-600">✗</span> You pick <strong>Over 45.5</strong> with <strong>2 confidence</strong>. 
+                Final score is 20-17 (37 total). <span className="text-red-600 font-semibold">You earn 0 points.</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Tips</h2>
+        <ul className="text-gray-600 space-y-2">
+          <li>• Put high confidence on picks you feel strongest about</li>
+          <li>• You can't pick both sides of the same spread or total</li>
+          <li>• Check the Gamecenter tab to see live standings during games</li>
+          <li>• Other players' picks are hidden until each game starts</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function ResultsView({ league, leagueMembers, availableWeeks }) {
+  const [selectedWeek, setSelectedWeek] = useState(availableWeeks[0] || 1);
+  const [weeklyScores, setWeeklyScores] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  // Fetch scores for all available weeks
+  useEffect(() => {
+    const fetchAllScores = async () => {
+      setLoading(true);
+      const scores = {};
+      
+      for (const week of availableWeeks) {
+        const picks = await api.getPicks(week);
+        scores[week] = {};
+        
+        // Calculate score for each member
+        leagueMembers.forEach(member => {
+          const memberPicks = picks.filter(p => p.user_id === member.id);
+          const weekScore = memberPicks.reduce((sum, pick) => {
+            if (pick.correct === 1) return sum + pick.confidence;
+            return sum;
+          }, 0);
+          scores[week][member.id] = weekScore;
+        });
+      }
+      
+      setWeeklyScores(scores);
+      setLoading(false);
+    };
+
+    if (availableWeeks.length > 0 && leagueMembers.length > 0) {
+      fetchAllScores();
+    }
+  }, [availableWeeks, leagueMembers]);
 
   const calculateWeeklyPayouts = (weekNumber) => {
-    const weekScores = mockData.players.map(player => ({
-      ...player,
-      weekScore: player.weeklyScores[weekNumber - 1] || 0
+    const weekData = weeklyScores[weekNumber] || {};
+    
+    const weekScores = leagueMembers.map(member => ({
+      id: member.id,
+      name: member.name,
+      weekScore: weekData[member.id] || 0
     }));
+    
+    if (weekScores.length === 0) return [];
     
     const totalPoints = weekScores.reduce((sum, player) => sum + player.weekScore, 0);
     const average = totalPoints / weekScores.length;
@@ -1038,26 +1139,26 @@ function ResultsView() {
     const winners = weekScores.filter(p => p.weekScore === highestScore);
     const losers = weekScores.filter(p => p.weekScore !== highestScore);
     
-    const totalBonusPool = losers.length * mockData.weeklyBonus;
-    const bonusPerWinner = totalBonusPool / winners.length;
+    const totalBonusPool = losers.length * league.weeklyBonus;
+    const bonusPerWinner = winners.length > 0 ? totalBonusPool / winners.length : 0;
     
     return weekScores.map(player => {
-      const pointsPayout = (player.weekScore - average) * mockData.dollarPerPoint;
+      const pointsPayout = (player.weekScore - average) * league.dollarPerPoint;
       const isWinner = player.weekScore === highestScore;
-      const bonusPayout = isWinner ? bonusPerWinner : -mockData.weeklyBonus;
+      const bonusPayout = isWinner ? bonusPerWinner : -league.weeklyBonus;
       return { ...player, pointsPayout, bonusPayout, totalWeeklyPayout: pointsPayout + bonusPayout };
     });
   };
 
   const calculateSeasonTotals = () => {
-    return mockData.players.map(player => {
+    return leagueMembers.map(member => {
       let seasonTotal = 0;
-      for (let week = 1; week <= mockData.currentWeek; week++) {
+      for (const week of availableWeeks) {
         const weeklyPayouts = calculateWeeklyPayouts(week);
-        const playerPayout = weeklyPayouts.find(p => p.id === player.id);
+        const playerPayout = weeklyPayouts.find(p => p.id === member.id);
         if (playerPayout) seasonTotal += playerPayout.totalWeeklyPayout;
       }
-      return { ...player, seasonTotal };
+      return { id: member.id, name: member.name, seasonTotal };
     });
   };
 
@@ -1066,66 +1167,73 @@ function ResultsView() {
     return `${prefix}$${Math.abs(amount).toFixed(0)}`;
   };
 
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+        Loading results...
+      </div>
+    );
+  }
+
   const weeklyPayouts = calculateWeeklyPayouts(selectedWeek);
   const seasonTotals = calculateSeasonTotals();
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h2 className="text-xl font-bold text-gray-900">Week Results</h2>
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Week:</label>
-            <select 
-              className="border rounded px-3 py-1 bg-white"
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
-            >
-              {Array.from({ length: mockData.currentWeek }, (_, i) => i + 1).map(week => (
-                <option key={week} value={week}>Week {week}</option>
-              ))}
-            </select>
-          </div>
+          <select 
+            className="border rounded px-3 py-1 bg-white w-fit"
+            value={selectedWeek}
+            onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
+          >
+            {availableWeeks.map(week => (
+              <option key={week} value={week}>Week {week}</option>
+            ))}
+          </select>
         </div>
         
         <div className="text-sm text-gray-600 mb-4">
-          ${mockData.dollarPerPoint} per point â€¢ ${mockData.weeklyBonus} weekly bonus per player
+          ${league.dollarPerPoint} per point • ${league.weeklyBonus} weekly bonus per player
         </div>
         
-        <table className="w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-2">Player</th>
-              <th className="text-right py-2">Points</th>
-              <th className="text-right py-2">Points Payout</th>
-              <th className="text-right py-2">Bonus Payout</th>
-              <th className="text-right py-2 font-bold">Total Weekly</th>
-            </tr>
-          </thead>
-          <tbody>
-            {weeklyPayouts.sort((a, b) => b.weekScore - a.weekScore).map((player, i) => (
-              <tr key={player.id} className="border-b">
-                <td className="py-3">
-                  <span className="text-gray-400 font-bold">#{i + 1}</span>
-                  <span className="ml-2 font-semibold">{player.name}</span>
-                </td>
-                <td className="text-right py-3 font-medium">{player.weekScore}</td>
-                <td className={`text-right py-3 ${player.pointsPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(player.pointsPayout)}
-                </td>
-                <td className={`text-right py-3 ${player.bonusPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(player.bonusPayout)}
-                </td>
-                <td className={`text-right py-3 font-bold ${player.totalWeeklyPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(player.totalWeeklyPayout)}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-2">Player</th>
+                <th className="text-right py-2">Points</th>
+                <th className="text-right py-2">Points Payout</th>
+                <th className="text-right py-2">Bonus Payout</th>
+                <th className="text-right py-2 font-bold">Total Weekly</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {weeklyPayouts.sort((a, b) => b.weekScore - a.weekScore).map((player, i) => (
+                <tr key={player.id} className="border-b">
+                  <td className="py-3">
+                    <span className="text-gray-400 font-bold">#{i + 1}</span>
+                    <span className="ml-2 font-semibold">{player.name}</span>
+                  </td>
+                  <td className="text-right py-3 font-medium">{player.weekScore}</td>
+                  <td className={`text-right py-3 ${player.pointsPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(player.pointsPayout)}
+                  </td>
+                  <td className={`text-right py-3 ${player.bonusPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(player.bonusPayout)}
+                  </td>
+                  <td className={`text-right py-3 font-bold ${player.totalWeeklyPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(player.totalWeeklyPayout)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Season Totals</h2>
         <div className="space-y-3">
           {seasonTotals.sort((a, b) => b.seasonTotal - a.seasonTotal).map((player, i) => (
@@ -1134,7 +1242,7 @@ function ResultsView() {
                 <div className="text-2xl font-bold text-gray-400">#{i + 1}</div>
                 <div>
                   <div className="font-semibold">{player.name}</div>
-                  <div className="text-sm text-gray-600">Through {mockData.currentWeek} weeks</div>
+                  <div className="text-sm text-gray-600">Through {availableWeeks.length} weeks</div>
                 </div>
               </div>
               <div className="text-right">
