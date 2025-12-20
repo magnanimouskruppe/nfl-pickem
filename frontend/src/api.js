@@ -27,6 +27,8 @@ const api = {
   createLeague: (name) => api.fetch('/leagues', { method: 'POST', body: { name } }),
   joinLeague: (inviteCode) => api.fetch('/leagues/join', { method: 'POST', body: { inviteCode } }),
   previewLeague: (inviteCode) => api.fetch(`/leagues/preview/${inviteCode}`),
+  updateLeague: (leagueId, settings) => api.fetch(`/leagues/${leagueId}`, { method: 'PUT', body: settings }),
+  removeMember: (leagueId, memberId) => api.fetch(`/leagues/${leagueId}/members/${memberId}`, { method: 'DELETE' }),
 };
 
 export default api;

@@ -225,6 +225,52 @@ app.get('/api/leagues/preview/:inviteCode', async (req, res) => {
   res.json({ name: league.rows[0].name, memberCount: parseInt(memberCount.rows[0].count) });
 });
 
+// Update league settings (admin only)
+app.put('/api/leagues/:id', async (req, res) => {
+  const userId = req.userId;
+  const leagueId = req.params.id;
+  
+  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  
+  // Check if user is admin
+  const league = await db.query(`SELECT * FROM leagues WHERE id = $1`, [leagueId]);
+  if (league.rows.length === 0) return res.status(404).json({ error: 'League not found' });
+  if (league.rows[0].admin_id !== userId) return res.status(403).json({ error: 'Only admin can update league' });
+  
+  const { name, dollarPerPoint, weeklyBonus } = req.body;
+  
+  await db.query(
+    `UPDATE leagues SET name = $1, dollar_per_point = $2, weekly_bonus = $3 WHERE id = $4`,
+    [name, dollarPerPoint, weeklyBonus, leagueId]
+  );
+  
+  res.json({ ok: true });
+});
+
+// Remove member from league (admin only)
+app.delete('/api/leagues/:id/members/:memberId', async (req, res) => {
+  const userId = req.userId;
+  const leagueId = req.params.id;
+  const memberId = req.params.memberId;
+  
+  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  
+  // Check if user is admin
+  const league = await db.query(`SELECT * FROM leagues WHERE id = $1`, [leagueId]);
+  if (league.rows.length === 0) return res.status(404).json({ error: 'League not found' });
+  if (league.rows[0].admin_id !== userId) return res.status(403).json({ error: 'Only admin can remove members' });
+  
+  // Can't remove yourself (admin)
+  if (memberId === userId) return res.status(400).json({ error: 'Cannot remove yourself' });
+  
+  await db.query(
+    `DELETE FROM league_members WHERE league_id = $1 AND user_id = $2`,
+    [leagueId, memberId]
+  );
+  
+  res.json({ ok: true });
+});
+
 app.get('/api/current-week', async (req, res) => {
   // Return the current NFL week based on today's date
   const currentWeek = getWeekFromDate(new Date());

@@ -165,7 +165,7 @@ export default function App() {
           <OtherPicksView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />
         )}
         {view === 'results' && <ResultsView />}
-        {view === 'league' && <LeagueView league={league} members={leagueMembers} isAdmin={isAdmin} />}
+        {view === 'league' && <LeagueView league={league} members={leagueMembers} isAdmin={isAdmin} onLeagueUpdate={loadLeague} />}
       </div>
     </div>
   );
@@ -327,8 +327,15 @@ function LeagueSetup({ user, onComplete }) {
   );
 }
 
-function LeagueView({ league, members, isAdmin }) {
+function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    name: league.name,
+    dollarPerPoint: league.dollarPerPoint,
+    weeklyBonus: league.weeklyBonus,
+  });
   
   const inviteUrl = `${window.location.origin}?join=${league.inviteCode}`;
 
@@ -338,21 +345,111 @@ function LeagueView({ league, members, isAdmin }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSave = async () => {
+    setSaving(true);
+    const result = await api.updateLeague(league.id, settings);
+    if (result.ok) {
+      setEditing(false);
+      onLeagueUpdate();
+    }
+    setSaving(false);
+  };
+
+  const handleRemoveMember = async (memberId, memberName) => {
+    if (!confirm(`Remove ${memberName} from the league?`)) return;
+    const result = await api.removeMember(league.id, memberId);
+    if (result.ok) {
+      onLeagueUpdate();
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">League Settings</h2>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900">League Settings</h2>
+          {isAdmin && !editing && (
+            <button 
+              onClick={() => setEditing(true)}
+              className="text-blue-500 hover:text-blue-700 text-sm font-medium"
+            >
+              Edit
+            </button>
+          )}
+        </div>
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-500">League Name</label>
-            <div className="text-lg font-medium">{league.name}</div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">League Name</label>
+            {editing ? (
+              <input
+                type="text"
+                value={settings.name}
+                onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+              />
+            ) : (
+              <div className="text-lg font-medium">{league.name}</div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-500">Scoring</label>
-            <div className="text-lg">${league.dollarPerPoint} per point â€¢ ${league.weeklyBonus} weekly bonus</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">$ Per Point</label>
+              {editing ? (
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={settings.dollarPerPoint}
+                  onChange={(e) => setSettings({ ...settings, dollarPerPoint: parseFloat(e.target.value) })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              ) : (
+                <div className="text-lg">${league.dollarPerPoint}</div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Weekly Bonus</label>
+              {editing ? (
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={settings.weeklyBonus}
+                  onChange={(e) => setSettings({ ...settings, weeklyBonus: parseFloat(e.target.value) })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              ) : (
+                <div className="text-lg">${league.weeklyBonus}</div>
+              )}
+            </div>
           </div>
+
+          {editing && (
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditing(false);
+                  setSettings({
+                    name: league.name,
+                    dollarPerPoint: league.dollarPerPoint,
+                    weeklyBonus: league.weeklyBonus,
+                  });
+                }}
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-2">Invite Link</label>
@@ -375,7 +472,7 @@ function LeagueView({ league, members, isAdmin }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Members ({members.length})</h2>
         <div className="space-y-2">
           {members.map(member => (
@@ -384,9 +481,19 @@ function LeagueView({ league, members, isAdmin }) {
                 <div className="font-medium">{member.name}</div>
                 <div className="text-sm text-gray-500">{member.email}</div>
               </div>
-              {member.id === league.adminId && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Admin</span>
-              )}
+              <div className="flex items-center gap-2">
+                {member.id === league.adminId && (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Admin</span>
+                )}
+                {isAdmin && member.id !== league.adminId && (
+                  <button
+                    onClick={() => handleRemoveMember(member.id, member.name)}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
