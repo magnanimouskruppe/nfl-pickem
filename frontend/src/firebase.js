@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC0EAcl_BFP8tnqYo0pv_yVDF1a_r9r3Hs",
@@ -15,6 +15,11 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
+
+// Check for redirect result on page load
+getRedirectResult(auth).catch((error) => {
+  console.error('Redirect sign-in error:', error);
+});
 
 // Use redirect on mobile, popup on desktop
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
