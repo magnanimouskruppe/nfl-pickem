@@ -296,40 +296,71 @@ function generateInviteCode() {
 
 // === LEAGUE MANAGEMENT ===
 
-app.get('/api/my-league', async (req, res) => {
+// Get all leagues for current user
+app.get('/api/my-leagues', async (req, res) => {
   const userId = req.userId;
-  if (!userId) return res.json({ league: null });
+  if (!userId) return res.json({ leagues: [] });
 
-  const membership = await db.query(
-    `SELECT l.*, lm.user_id 
+  const leagues = await db.query(
+    `SELECT l.*, 
+            (SELECT COUNT(*) FROM league_members WHERE league_id = l.id) as member_count
      FROM leagues l
      JOIN league_members lm ON l.id = lm.league_id
-     WHERE lm.user_id = $1`,
+     WHERE lm.user_id = $1
+     ORDER BY l.name`,
     [userId]
   );
 
-  if (membership.rows.length === 0) return res.json({ league: null });
+  const formattedLeagues = leagues.rows.map(league => ({
+    id: league.id,
+    name: league.name,
+    inviteCode: league.invite_code,
+    adminId: league.admin_id,
+    dollarPerPoint: league.dollar_per_point,
+    weeklyBonus: league.weekly_bonus,
+    memberCount: parseInt(league.member_count),
+    isAdmin: league.admin_id === userId
+  }));
 
-  const league = membership.rows[0];
+  res.json({ leagues: formattedLeagues });
+});
+
+// Get details for a specific league
+app.get('/api/leagues/:id', async (req, res) => {
+  const userId = req.userId;
+  const leagueId = req.params.id;
+
+  // Verify user is a member
+  const membership = await db.query(
+    `SELECT * FROM league_members WHERE league_id = $1 AND user_id = $2`,
+    [leagueId, userId]
+  );
+  if (membership.rows.length === 0) {
+    return res.status(403).json({ error: 'Not a member of this league' });
+  }
+
+  const league = await db.query(`SELECT * FROM leagues WHERE id = $1`, [leagueId]);
+  if (league.rows.length === 0) return res.status(404).json({ error: 'League not found' });
+
   const members = await db.query(
     `SELECT u.id, u.name, u.email
      FROM users u
      JOIN league_members lm ON u.id = lm.user_id
      WHERE lm.league_id = $1`,
-    [league.id]
+    [leagueId]
   );
 
   res.json({ 
     league: {
-      id: league.id,
-      name: league.name,
-      inviteCode: league.invite_code,
-      adminId: league.admin_id,
-      dollarPerPoint: league.dollar_per_point,
-      weeklyBonus: league.weekly_bonus,
+      id: league.rows[0].id,
+      name: league.rows[0].name,
+      inviteCode: league.rows[0].invite_code,
+      adminId: league.rows[0].admin_id,
+      dollarPerPoint: league.rows[0].dollar_per_point,
+      weeklyBonus: league.rows[0].weekly_bonus,
     },
     members: members.rows,
-    isAdmin: league.admin_id === userId
+    isAdmin: league.rows[0].admin_id === userId
   });
 });
 
@@ -339,9 +370,6 @@ app.post('/api/leagues', async (req, res) => {
 
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'League name required' });
-
-  const existing = await db.query(`SELECT * FROM league_members WHERE user_id = $1`, [userId]);
-  if (existing.rows.length > 0) return res.status(400).json({ error: 'You are already in a league' });
 
   const inviteCode = generateInviteCode();
 
@@ -365,11 +393,15 @@ app.post('/api/leagues/join', async (req, res) => {
   const { inviteCode } = req.body;
   if (!inviteCode) return res.status(400).json({ error: 'Invite code required' });
 
-  const existing = await db.query(`SELECT * FROM league_members WHERE user_id = $1`, [userId]);
-  if (existing.rows.length > 0) return res.status(400).json({ error: 'You are already in a league' });
-
   const league = await db.query(`SELECT * FROM leagues WHERE invite_code = $1`, [inviteCode.toUpperCase()]);
   if (league.rows.length === 0) return res.status(404).json({ error: 'Invalid invite code' });
+
+  // Check if already in THIS league
+  const existing = await db.query(
+    `SELECT * FROM league_members WHERE user_id = $1 AND league_id = $2`, 
+    [userId, league.rows[0].id]
+  );
+  if (existing.rows.length > 0) return res.status(400).json({ error: 'You are already in this league' });
 
   await db.query(
     `INSERT INTO league_members (league_id, user_id) VALUES ($1, $2)`,

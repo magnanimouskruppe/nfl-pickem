@@ -12,10 +12,15 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [currentWeek, setCurrentWeek] = useState(null);
   const [availableWeeks, setAvailableWeeks] = useState([]);
+  
+  // Multi-league state
+  const [allLeagues, setAllLeagues] = useState([]);
+  const [activeLeagueId, setActiveLeagueId] = useState(null);
   const [league, setLeague] = useState(null);
   const [leagueMembers, setLeagueMembers] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [leagueLoading, setLeagueLoading] = useState(true);
+  const [showLeagueSwitcher, setShowLeagueSwitcher] = useState(false);
 
   useEffect(() => {
     return auth.onAuthStateChanged(async (u) => {
@@ -30,19 +35,44 @@ export default function App() {
     });
   }, []);
 
-  // Load league info on startup
+  // Load all leagues on startup
   useEffect(() => {
     if (!user) return;
-    loadLeague();
+    loadAllLeagues();
   }, [user]);
 
-  const loadLeague = async () => {
+  const loadAllLeagues = async () => {
     setLeagueLoading(true);
-    const data = await api.getMyLeague();
+    const data = await api.getMyLeagues();
+    setAllLeagues(data.leagues || []);
+    
+    // If user has leagues, select the first one (or previously selected)
+    if (data.leagues && data.leagues.length > 0) {
+      const savedLeagueId = localStorage.getItem('activeLeagueId');
+      const savedLeague = data.leagues.find(l => l.id === parseInt(savedLeagueId));
+      const leagueToSelect = savedLeague || data.leagues[0];
+      await selectLeague(leagueToSelect.id);
+    } else {
+      setLeague(null);
+      setLeagueLoading(false);
+    }
+  };
+
+  const selectLeague = async (leagueId) => {
+    setLeagueLoading(true);
+    setActiveLeagueId(leagueId);
+    localStorage.setItem('activeLeagueId', leagueId);
+    
+    const data = await api.getLeague(leagueId);
     setLeague(data.league);
     setLeagueMembers(data.members || []);
     setIsAdmin(data.isAdmin || false);
     setLeagueLoading(false);
+    setShowLeagueSwitcher(false);
+  };
+
+  const handleLeagueCreatedOrJoined = async () => {
+    await loadAllLeagues();
   };
 
   // Load current week on startup
@@ -151,7 +181,7 @@ export default function App() {
 
   // Not in a league - show create/join screen
   if (!league) {
-    return <LeagueSetup user={user} onComplete={loadLeague} />;
+    return <LeagueSetup user={user} onComplete={handleLeagueCreatedOrJoined} allLeagues={allLeagues} />;
   }
 
   if (!currentWeek) {
@@ -167,7 +197,54 @@ export default function App() {
       <div className="max-w-6xl mx-auto">
         <header className="bg-white rounded-lg shadow mb-4 sm:mb-6 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 mb-4">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{league.name}</h1>
+            {/* League Switcher */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowLeagueSwitcher(!showLeagueSwitcher)}
+                className="flex items-center gap-2 text-2xl sm:text-3xl font-bold text-gray-900 hover:text-gray-700"
+              >
+                {league.name}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showLeagueSwitcher && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowLeagueSwitcher(false)} />
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border z-20">
+                    <div className="p-2">
+                      <div className="text-xs font-medium text-gray-500 px-3 py-2">YOUR LEAGUES</div>
+                      {allLeagues.map(l => (
+                        <button
+                          key={l.id}
+                          onClick={() => selectLeague(l.id)}
+                          className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 ${l.id === activeLeagueId ? 'bg-blue-50 text-blue-700' : ''}`}
+                        >
+                          <div className="font-medium">{l.name}</div>
+                          <div className="text-xs text-gray-500">{l.memberCount} members</div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="border-t p-2">
+                      <button
+                        onClick={() => { setShowLeagueSwitcher(false); setView('joinLeague'); }}
+                        className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-gray-700"
+                      >
+                        + Join a League
+                      </button>
+                      <button
+                        onClick={() => { setShowLeagueSwitcher(false); setView('createLeague'); }}
+                        className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-gray-700"
+                      >
+                        + Create a League
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            
             <div className="flex items-center gap-4">
               <span className="text-gray-600 text-sm sm:text-base">{user.displayName}</span>
               <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Logout</button>
@@ -202,7 +279,9 @@ export default function App() {
           <OtherPicksView games={games} allPicks={allPicks} users={users} currentUserId={user.uid} week={currentWeek} availableWeeks={availableWeeks} onWeekChange={setCurrentWeek} />
         )}
         {view === 'results' && <ResultsView league={league} leagueMembers={leagueMembers} availableWeeks={availableWeeks} />}
-        {view === 'league' && <LeagueView league={league} members={leagueMembers} isAdmin={isAdmin} onLeagueUpdate={loadLeague} />}
+        {view === 'league' && <LeagueView league={league} members={leagueMembers} isAdmin={isAdmin} onLeagueUpdate={() => selectLeague(activeLeagueId)} />}
+        {view === 'joinLeague' && <JoinLeagueView onComplete={handleLeagueCreatedOrJoined} onCancel={() => setView('howItWorks')} />}
+        {view === 'createLeague' && <CreateLeagueView onComplete={handleLeagueCreatedOrJoined} onCancel={() => setView('howItWorks')} />}
       </div>
     </div>
   );
@@ -357,6 +436,147 @@ function LeagueSetup({ user, onComplete }) {
         <div className="mt-6 pt-4 border-t text-center">
           <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">
             Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Inline Join League view (when user clicks from switcher)
+function JoinLeagueView({ onComplete, onCancel }) {
+  const [inviteCode, setInviteCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [previewLeague, setPreviewLeague] = useState(null);
+
+  const handlePreview = async (code) => {
+    if (code.length >= 6) {
+      const data = await api.previewLeague(code);
+      if (!data.error) setPreviewLeague(data);
+      else setPreviewLeague(null);
+    } else {
+      setPreviewLeague(null);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!inviteCode.trim()) {
+      setError('Please enter an invite code');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const result = await api.joinLeague(inviteCode.trim());
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+    } else {
+      onComplete();
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
+      <h2 className="text-xl font-bold mb-4">Join a League</h2>
+      
+      {previewLeague && (
+        <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800 mb-4">
+          Found: <strong>{previewLeague.name}</strong> ({previewLeague.memberCount} members)
+        </div>
+      )}
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Invite Code</label>
+          <input
+            type="text"
+            value={inviteCode}
+            onChange={(e) => {
+              const val = e.target.value.toUpperCase();
+              setInviteCode(val);
+              handlePreview(val);
+            }}
+            placeholder="e.g., ABC123XY"
+            className="w-full border rounded px-3 py-2 uppercase"
+          />
+        </div>
+        
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+        
+        <div className="flex gap-3">
+          <button 
+            onClick={onCancel}
+            className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded font-medium"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleJoin}
+            disabled={loading}
+            className="flex-1 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+          >
+            {loading ? 'Joining...' : 'Join League'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Inline Create League view (when user clicks from switcher)
+function CreateLeagueView({ onComplete, onCancel }) {
+  const [leagueName, setLeagueName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async () => {
+    if (!leagueName.trim()) {
+      setError('Please enter a league name');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const result = await api.createLeague(leagueName.trim());
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+    } else {
+      onComplete();
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
+      <h2 className="text-xl font-bold mb-4">Create a League</h2>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
+          <input
+            type="text"
+            value={leagueName}
+            onChange={(e) => setLeagueName(e.target.value)}
+            placeholder="e.g., Playoffs 2025"
+            className="w-full border rounded px-3 py-2"
+          />
+        </div>
+        
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+        
+        <div className="flex gap-3">
+          <button 
+            onClick={onCancel}
+            className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded font-medium"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleCreate}
+            disabled={loading}
+            className="flex-1 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+          >
+            {loading ? 'Creating...' : 'Create League'}
           </button>
         </div>
       </div>

@@ -23,11 +23,12 @@ const api = {
   fetchScores: () => api.fetch('/fetch-scores', { method: 'POST' }),
   
   // League management
-  getMyLeague: () => api.fetch('/my-league'),
+  getMyLeagues: () => api.fetch('/my-leagues'),
+  getLeague: (leagueId) => api.fetch(`/leagues/${leagueId}`),
   createLeague: (name) => api.fetch('/leagues', { method: 'POST', body: { name } }),
   joinLeague: (inviteCode) => api.fetch('/leagues/join', { method: 'POST', body: { inviteCode } }),
   previewLeague: (inviteCode) => api.fetch(`/leagues/preview/${inviteCode}`),
-  updateLeague: (leagueId, settings) => api.fetch(`/leagues/${leagueId}`, { method: 'PUT', body: settings }),
+  updateLeague: (leagueId, data) => api.fetch(`/leagues/${leagueId}`, { method: 'PUT', body: data }),
   removeMember: (leagueId, memberId) => api.fetch(`/leagues/${leagueId}/members/${memberId}`, { method: 'DELETE' }),
 };
 
