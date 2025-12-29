@@ -655,7 +655,7 @@ app.get('/api/picks/:week', async (req, res) => {
     `SELECT p.*, u.name as user_name, g.start_time
      FROM picks p
      JOIN users u ON p.user_id = u.id
-     JOIN games g ON p.game_id = g.id
+     LEFT JOIN games g ON p.game_id = g.id
      JOIN league_members lm ON p.user_id = lm.user_id
      WHERE p.week = $1 AND lm.league_id = $2`,
     [week, membership.rows[0].league_id]
