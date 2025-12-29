@@ -600,10 +600,13 @@ app.get('/api/picks/:week', async (req, res) => {
     [week, membership.rows[0].league_id]
   );
   
-  const now = new Date().toISOString();
+  const now = new Date();
   
   const filtered = picks.rows.map(p => {
-    if (p.user_id === userId || p.start_time <= now) return p;
+    // Show pick if: it's the current user's pick OR the game has started
+    const gameStarted = new Date(p.start_time) <= now;
+    if (p.user_id === userId || gameStarted) return p;
+    // Hide pick details for other users if game hasn't started
     return { ...p, pick_type: null, pick_value: null, game_id: null };
   });
   
