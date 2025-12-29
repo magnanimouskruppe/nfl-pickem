@@ -874,6 +874,9 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
 function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, onWeekChange }) {
   const [selections, setSelections] = useState({});
 
+  // Filter to only show games that haven't started yet
+  const availableGames = games.filter(g => new Date(g.start_time) > new Date());
+
   const getPickLabel = (game, pickType, pickValue) => {
     if (!game) return '';
     const underdog = game.favorite === game.home_team ? game.away_team : game.home_team;
@@ -885,7 +888,7 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
   };
 
   const getPropsForGame = (gameId) => {
-    const g = games.find(x => x.id === gameId);
+    const g = availableGames.find(x => x.id === gameId);
     if (!g) return [];
     const underdog = g.favorite === g.home_team ? g.away_team : g.home_team;
     
@@ -905,6 +908,12 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
       }
       return true;
     });
+  };
+
+  // Check if a pick's game has already started (can't clear it)
+  const hasGameStarted = (pick) => {
+    if (!pick?.game?.start_time) return false;
+    return new Date(pick.game.start_time) <= new Date();
   };
 
   return (
@@ -951,14 +960,17 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
                 {pick ? (
                   <>
                     <div className="flex-1 ml-4 mr-3">
-                      <div className="bg-blue-50 rounded p-3">
+                      <div className={`rounded p-3 ${hasGameStarted(pick) ? 'bg-gray-100' : 'bg-blue-50'}`}>
                         <div className="font-semibold text-sm">{pick.game?.away_team} @ {pick.game?.home_team}</div>
-                        <div className="text-blue-600 font-bold">{getPickLabel(pick.game, pick.pickType, pick.pickValue)}</div>
+                        <div className={`font-bold ${hasGameStarted(pick) ? 'text-gray-600' : 'text-blue-600'}`}>{getPickLabel(pick.game, pick.pickType, pick.pickValue)}</div>
+                        {hasGameStarted(pick) && <div className="text-xs text-gray-500 mt-1">Game started - locked</div>}
                       </div>
                     </div>
-                    <button onClick={() => onClear(conf)} className="text-red-500 hover:text-red-700 text-sm">
-                      Clear
-                    </button>
+                    {!hasGameStarted(pick) && (
+                      <button onClick={() => onClear(conf)} className="text-red-500 hover:text-red-700 text-sm">
+                        Clear
+                      </button>
+                    )}
                   </>
                 ) : (
                   <div className="flex-1 grid grid-cols-2 gap-3 ml-4">
@@ -968,7 +980,7 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
                       onChange={(e) => setSelections({ ...selections, [conf]: +e.target.value })}
                     >
                       <option value="">Game...</option>
-                      {games.map((g) => (
+                      {availableGames.map((g) => (
                         <option key={g.id} value={g.id}>{g.away_team} @ {g.home_team}</option>
                       ))}
                     </select>

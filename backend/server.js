@@ -33,6 +33,7 @@ function getESTMinutes() {
 // Track last run times to avoid duplicate runs
 let lastOddsRefresh = 0;
 let lastScoresRefresh = 0;
+let lastWeeklyCleanup = 0;
 
 async function runScheduler() {
   const hour = getESTHour();
@@ -105,11 +106,71 @@ async function runScheduler() {
       console.error(`[Scheduler] Scores refresh failed:`, err.message);
     }
   }
+  
+  // ---- TUESDAY CLEANUP: Mark missing picks as losses ----
+  // Tuesday (day 2) at 8am EST: finalize previous week's missing picks
+  if (day === 2 && hour === 8 && minutes < 5 && (now - lastWeeklyCleanup) >= 12 * 60 * 60 * 1000) {
+    console.log(`[Scheduler] Running weekly cleanup at ${new Date().toISOString()}`);
+    try {
+      await finalizeMissingPicks();
+      lastWeeklyCleanup = now;
+      console.log(`[Scheduler] Weekly cleanup complete`);
+    } catch (err) {
+      console.error(`[Scheduler] Weekly cleanup failed:`, err.message);
+    }
+  }
 }
 
 // Start scheduler - check every minute
 setInterval(runScheduler, 60 * 1000);
 console.log('[Scheduler] Started - will auto-refresh odds and scores based on schedule');
+
+// Finalize missing picks for completed weeks
+// For each user in each league, if they don't have picks for all 10 confidence levels,
+// mark the missing ones as losses (correct = 0)
+async function finalizeMissingPicks() {
+  // Get the previous week number (the one that just ended)
+  const currentWeek = getWeekFromDate(new Date());
+  const previousWeek = currentWeek - 1;
+  
+  if (previousWeek < 1) return { ok: true, message: 'No previous week to finalize' };
+  
+  // Get all users who are in leagues
+  const users = await db.query(`
+    SELECT DISTINCT lm.user_id, lm.league_id 
+    FROM league_members lm
+  `);
+  
+  let picksCreated = 0;
+  
+  for (const user of users.rows) {
+    // Get this user's existing picks for the previous week
+    const existingPicks = await db.query(
+      `SELECT confidence FROM picks WHERE user_id = $1 AND week = $2`,
+      [user.user_id, previousWeek]
+    );
+    
+    const existingConfidences = new Set(existingPicks.rows.map(p => p.confidence));
+    
+    // For each missing confidence level (1-10), create a "loss" pick
+    for (let conf = 1; conf <= 10; conf++) {
+      if (!existingConfidences.has(conf)) {
+        // Insert a placeholder pick marked as incorrect (0 points)
+        // We use game_id = NULL to indicate no game was picked
+        await db.query(
+          `INSERT INTO picks (user_id, game_id, week, pick_type, pick_value, confidence, correct)
+           VALUES ($1, NULL, $2, 'missed', 'missed', $3, 0)
+           ON CONFLICT (user_id, week, confidence) DO NOTHING`,
+          [user.user_id, previousWeek, conf]
+        );
+        picksCreated++;
+      }
+    }
+  }
+  
+  return { ok: true, picksCreated, week: previousWeek };
+}
+
 // ============ END SCHEDULER ============
 
 const __filename = fileURLToPath(import.meta.url);
@@ -759,6 +820,50 @@ app.post('/api/seed-historical-scores', async (req, res) => {
     res.json({ ok: true, gamesUpdated: updated, gamesInserted: inserted, message: `Updated ${updated} games, inserted ${inserted} new games` });
   } catch (err) {
     console.error('Error seeding historical scores:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manually finalize missing picks for a specific week
+// This marks any missing confidence levels as losses (0 points)
+app.post('/api/finalize-week/:week', async (req, res) => {
+  try {
+    const week = parseInt(req.params.week);
+    
+    // Get all users who are in leagues
+    const users = await db.query(`
+      SELECT DISTINCT lm.user_id, lm.league_id 
+      FROM league_members lm
+    `);
+    
+    let picksCreated = 0;
+    
+    for (const user of users.rows) {
+      // Get this user's existing picks for the week
+      const existingPicks = await db.query(
+        `SELECT confidence FROM picks WHERE user_id = $1 AND week = $2`,
+        [user.user_id, week]
+      );
+      
+      const existingConfidences = new Set(existingPicks.rows.map(p => p.confidence));
+      
+      // For each missing confidence level (1-10), create a "loss" pick
+      for (let conf = 1; conf <= 10; conf++) {
+        if (!existingConfidences.has(conf)) {
+          await db.query(
+            `INSERT INTO picks (user_id, game_id, week, pick_type, pick_value, confidence, correct)
+             VALUES ($1, NULL, $2, 'missed', 'missed', $3, 0)
+             ON CONFLICT (user_id, week, confidence) DO NOTHING`,
+            [user.user_id, week, conf]
+          );
+          picksCreated++;
+        }
+      }
+    }
+    
+    res.json({ ok: true, picksCreated, week, message: `Created ${picksCreated} missing picks for week ${week}` });
+  } catch (err) {
+    console.error('Error finalizing week:', err);
     res.status(500).json({ error: err.message });
   }
 });
