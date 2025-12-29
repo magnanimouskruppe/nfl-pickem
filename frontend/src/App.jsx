@@ -93,14 +93,49 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const inviteCode = params.get('join');
 
+    // Detect embedded browsers (in-app browsers from Messages, Mail, etc.)
+    const isEmbeddedBrowser = /FBAN|FBAV|Instagram|Twitter|LinkedIn|Snapchat|Line|KAKAOTALK|Naver|Daum|Baidu/i.test(navigator.userAgent) ||
+      (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && navigator.userAgent.includes('Mobile') && !navigator.standalone && window.navigator.standalone === undefined && document.referrer.includes('facebook.com')) ||
+      (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !/Safari/i.test(navigator.userAgent)) ||
+      (navigator.userAgent.includes('wv') || navigator.userAgent.includes('WebView'));
+    
+    // iOS in-app browser detection (Messages, Mail, etc.)
+    const isIOSInApp = /iPhone|iPad|iPod/.test(navigator.userAgent) && 
+      !navigator.standalone && 
+      !/CriOS|FxiOS|OPiOS|mercury/i.test(navigator.userAgent) &&
+      window.webkit && window.webkit.messageHandlers;
+
+    const showBrowserWarning = isEmbeddedBrowser || isIOSInApp;
+
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow text-center">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-lg shadow text-center max-w-md">
           <h1 className="text-3xl font-bold mb-4">NFL Pickem</h1>
           {inviteCode && <p className="text-gray-600 mb-4">Sign in to join the league</p>}
-          <button onClick={loginWithGoogle} className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
-            Sign in with Google
-          </button>
+          
+          {showBrowserWarning ? (
+            <div className="text-left">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <p className="text-yellow-800 font-medium mb-2">Open in Safari to sign in</p>
+                <p className="text-yellow-700 text-sm mb-3">
+                  Google sign-in doesn't work in this browser. Please open this page in Safari or Chrome.
+                </p>
+                <p className="text-yellow-700 text-sm font-medium">On iPhone:</p>
+                <ol className="text-yellow-700 text-sm list-decimal ml-4 space-y-1">
+                  <li>Tap the share button <span className="inline-block">&#xFEFF;↗</span> at the bottom</li>
+                  <li>Select "Open in Safari"</li>
+                </ol>
+              </div>
+              <button onClick={loginWithGoogle} className="w-full bg-gray-300 text-gray-600 px-6 py-2 rounded cursor-not-allowed">
+                Sign in with Google
+              </button>
+              <p className="text-xs text-gray-500 mt-2">Or try anyway - it might work in some browsers</p>
+            </div>
+          ) : (
+            <button onClick={loginWithGoogle} className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+              Sign in with Google
+            </button>
+          )}
         </div>
       </div>
     );
@@ -333,6 +368,9 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [refreshingOdds, setRefreshingOdds] = useState(false);
+  const [refreshingScores, setRefreshingScores] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState(null);
   const [settings, setSettings] = useState({
     name: league.name,
     dollarPerPoint: league.dollarPerPoint,
@@ -363,6 +401,40 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
     if (result.ok) {
       onLeagueUpdate();
     }
+  };
+
+  const handleRefreshOdds = async () => {
+    setRefreshingOdds(true);
+    setRefreshMessage(null);
+    try {
+      const result = await api.fetchOdds();
+      if (result.ok) {
+        setRefreshMessage({ type: 'success', text: `Updated ${result.gamesAdded} games` });
+      } else {
+        setRefreshMessage({ type: 'error', text: result.error || 'Failed to fetch odds' });
+      }
+    } catch (err) {
+      setRefreshMessage({ type: 'error', text: 'Failed to fetch odds' });
+    }
+    setRefreshingOdds(false);
+    setTimeout(() => setRefreshMessage(null), 5000);
+  };
+
+  const handleRefreshScores = async () => {
+    setRefreshingScores(true);
+    setRefreshMessage(null);
+    try {
+      const result = await api.fetchScores();
+      if (result.ok) {
+        setRefreshMessage({ type: 'success', text: `Updated ${result.gamesUpdated} game scores` });
+      } else {
+        setRefreshMessage({ type: 'error', text: result.error || 'Failed to fetch scores' });
+      }
+    } catch (err) {
+      setRefreshMessage({ type: 'error', text: 'Failed to fetch scores' });
+    }
+    setRefreshingScores(false);
+    setTimeout(() => setRefreshMessage(null), 5000);
   };
 
   return (
@@ -500,6 +572,42 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
           ))}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Admin Tools</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Refresh game data from the odds provider. Use sparingly - API has limited requests per month.
+          </p>
+          
+          {refreshMessage && (
+            <div className={`mb-4 p-3 rounded text-sm ${
+              refreshMessage.type === 'success' 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {refreshMessage.text}
+            </div>
+          )}
+          
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleRefreshOdds}
+              disabled={refreshingOdds}
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 disabled:opacity-50"
+            >
+              {refreshingOdds ? 'Refreshing...' : 'Refresh Lines/Odds'}
+            </button>
+            <button
+              onClick={handleRefreshScores}
+              disabled={refreshingScores}
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 disabled:opacity-50"
+            >
+              {refreshingScores ? 'Refreshing...' : 'Refresh Scores'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
