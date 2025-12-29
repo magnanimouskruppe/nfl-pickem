@@ -493,7 +493,7 @@ async function fetchAndUpdateOdds() {
   }
 
   return { ok: true, gamesAdded: gamesUpdated, weekSummary };
-});
+}
 
 app.post('/api/fetch-scores', async (req, res) => {
   try {
@@ -542,7 +542,7 @@ async function fetchAndUpdateScores() {
   }
 
   return { ok: true, gamesUpdated };
-});
+}
 
 async function resolvePicksForGame(game, homeScore, awayScore) {
   const picks = await db.query(
