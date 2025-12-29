@@ -4,6 +4,114 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
 
+// ============ SCHEDULER ============
+// Runs in the background to auto-refresh odds and scores
+
+function getESTHour() {
+  // Get current hour in Eastern Time
+  const now = new Date();
+  const estOffset = -5; // EST is UTC-5 (ignoring DST for simplicity)
+  const utcHour = now.getUTCHours();
+  let estHour = utcHour + estOffset;
+  if (estHour < 0) estHour += 24;
+  return estHour;
+}
+
+function getESTDay() {
+  // Get current day of week in Eastern Time (0 = Sunday)
+  const now = new Date();
+  const estTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  return estTime.getDay();
+}
+
+function getESTMinutes() {
+  const now = new Date();
+  const estTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  return estTime.getMinutes();
+}
+
+// Track last run times to avoid duplicate runs
+let lastOddsRefresh = 0;
+let lastScoresRefresh = 0;
+
+async function runScheduler() {
+  const hour = getESTHour();
+  const day = getESTDay();
+  const minutes = getESTMinutes();
+  const now = Date.now();
+  
+  // ---- ODDS REFRESH LOGIC ----
+  // Monday-Saturday (day 1-6): Once per hour from 8am-8pm EST
+  // Sunday (day 0): Every 15 min from 8am-4pm, then hourly 5pm-8pm
+  
+  let shouldRefreshOdds = false;
+  let oddsInterval = 60 * 60 * 1000; // Default: 1 hour
+  
+  if (day === 0) {
+    // Sunday
+    if (hour >= 8 && hour < 16) {
+      // 8am-4pm: every 15 minutes
+      oddsInterval = 15 * 60 * 1000;
+      shouldRefreshOdds = (now - lastOddsRefresh) >= oddsInterval;
+    } else if (hour >= 17 && hour <= 20) {
+      // 5pm-8pm: hourly
+      shouldRefreshOdds = (now - lastOddsRefresh) >= oddsInterval && minutes < 5;
+    }
+  } else if (day >= 1 && day <= 6) {
+    // Monday-Saturday: hourly from 8am-8pm
+    if (hour >= 8 && hour <= 20) {
+      shouldRefreshOdds = (now - lastOddsRefresh) >= oddsInterval && minutes < 5;
+    }
+  }
+  
+  if (shouldRefreshOdds) {
+    console.log(`[Scheduler] Refreshing odds at ${new Date().toISOString()}`);
+    try {
+      await fetchAndUpdateOdds();
+      lastOddsRefresh = now;
+      console.log(`[Scheduler] Odds refresh complete`);
+    } catch (err) {
+      console.error(`[Scheduler] Odds refresh failed:`, err.message);
+    }
+  }
+  
+  // ---- SCORES REFRESH LOGIC ----
+  // Monday-Saturday: Once per day (run at 8am)
+  // Sunday: Every 5 min from 1pm-11:59pm EST
+  
+  let shouldRefreshScores = false;
+  let scoresInterval = 24 * 60 * 60 * 1000; // Default: 24 hours
+  
+  if (day === 0) {
+    // Sunday: every 5 minutes from 1pm-midnight
+    if (hour >= 13 && hour <= 23) {
+      scoresInterval = 5 * 60 * 1000;
+      shouldRefreshScores = (now - lastScoresRefresh) >= scoresInterval;
+    }
+  } else {
+    // Monday-Saturday: once per day at 8am
+    if (hour === 8 && minutes < 5 && (now - lastScoresRefresh) >= 60 * 60 * 1000) {
+      shouldRefreshScores = true;
+    }
+  }
+  
+  if (shouldRefreshScores) {
+    console.log(`[Scheduler] Refreshing scores at ${new Date().toISOString()}`);
+    try {
+      await fetchAndUpdateScores();
+      lastScoresRefresh = now;
+      console.log(`[Scheduler] Scores refresh complete`);
+    } catch (err) {
+      console.error(`[Scheduler] Scores refresh failed:`, err.message);
+    }
+  }
+}
+
+// Start scheduler - check every minute
+setInterval(runScheduler, 60 * 1000);
+console.log('[Scheduler] Started - will auto-refresh odds and scores based on schedule');
+// ============ END SCHEDULER ============
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -289,124 +397,151 @@ app.get('/api/games/:week', async (req, res) => {
 
 app.post('/api/fetch-odds', async (req, res) => {
   try {
-    const data = await fetchOddsAPI('sports/americanfootball_nfl/odds/?regions=us&markets=spreads,totals&oddsFormat=american');
-    
-    if (!Array.isArray(data)) {
-      return res.status(500).json({ error: 'Invalid response from Odds API', data });
-    }
-
-    // Track which weeks we're updating
-    const weeksToUpdate = new Set();
-    const gamesToInsert = [];
-
-    // First pass: determine weeks and prepare game data
-    for (const game of data) {
-      const startTime = game.commence_time;
-      const week = getWeekFromDate(startTime);
-      weeksToUpdate.add(week);
-
-      const homeTeam = shortName(game.home_team);
-      const awayTeam = shortName(game.away_team);
-      const externalId = game.id;
-
-      const bookmaker = game.bookmakers?.find(b => b.key === 'draftkings') || game.bookmakers?.[0];
-      if (!bookmaker) continue;
-
-      const spreadMarket = bookmaker.markets?.find(m => m.key === 'spreads');
-      const homeSpreadOutcome = spreadMarket?.outcomes?.find(o => shortName(o.name) === homeTeam);
-      const spread = homeSpreadOutcome?.point;
-
-      const totalMarket = bookmaker.markets?.find(m => m.key === 'totals');
-      const overOutcome = totalMarket?.outcomes?.find(o => o.name === 'Over');
-      const total = overOutcome?.point;
-
-      if (spread === undefined || total === undefined) continue;
-
-      const favorite = spread < 0 ? homeTeam : awayTeam;
-      const spreadAbs = Math.abs(spread);
-
-      gamesToInsert.push({
-        week,
-        awayTeam,
-        homeTeam,
-        favorite,
-        spreadAbs,
-        total,
-        startTime,
-        externalId
-      });
-    }
-
-    // Delete existing games for the weeks we're updating
-    for (const week of weeksToUpdate) {
-      await db.query(`DELETE FROM games WHERE week = $1`, [week]);
-    }
-
-    // Insert all games
-    let gamesAdded = 0;
-    for (const game of gamesToInsert) {
-      await db.query(
-        `INSERT INTO games (week, away_team, home_team, favorite, spread, over_under, start_time, external_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [game.week, game.awayTeam, game.homeTeam, game.favorite, game.spreadAbs, game.total, game.startTime, game.externalId]
-      );
-      gamesAdded++;
-    }
-
-    // Return summary by week
-    const weekSummary = {};
-    for (const game of gamesToInsert) {
-      weekSummary[game.week] = (weekSummary[game.week] || 0) + 1;
-    }
-
-    res.json({ ok: true, gamesAdded, weekSummary });
+    const result = await fetchAndUpdateOdds();
+    res.json(result);
   } catch (err) {
     console.error('Error fetching odds:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// Reusable function for scheduler and API
+async function fetchAndUpdateOdds() {
+  const data = await fetchOddsAPI('sports/americanfootball_nfl/odds/?regions=us&markets=spreads,totals&oddsFormat=american');
+  
+  if (!Array.isArray(data)) {
+    throw new Error('Invalid response from Odds API');
+  }
+
+  // Track which weeks we're updating
+  const weeksToUpdate = new Set();
+  const gamesToInsert = [];
+
+  // First pass: determine weeks and prepare game data
+  for (const game of data) {
+    const startTime = game.commence_time;
+    const week = getWeekFromDate(startTime);
+    weeksToUpdate.add(week);
+
+    const homeTeam = shortName(game.home_team);
+    const awayTeam = shortName(game.away_team);
+    const externalId = game.id;
+
+    const bookmaker = game.bookmakers?.find(b => b.key === 'draftkings') || game.bookmakers?.[0];
+    if (!bookmaker) continue;
+
+    const spreadMarket = bookmaker.markets?.find(m => m.key === 'spreads');
+    const homeSpreadOutcome = spreadMarket?.outcomes?.find(o => shortName(o.name) === homeTeam);
+    const spread = homeSpreadOutcome?.point;
+
+    const totalMarket = bookmaker.markets?.find(m => m.key === 'totals');
+    const overOutcome = totalMarket?.outcomes?.find(o => o.name === 'Over');
+    const total = overOutcome?.point;
+
+    if (spread === undefined || total === undefined) continue;
+
+    const favorite = spread < 0 ? homeTeam : awayTeam;
+    const spreadAbs = Math.abs(spread);
+
+    gamesToInsert.push({
+      week,
+      awayTeam,
+      homeTeam,
+      favorite,
+      spreadAbs,
+      total,
+      startTime,
+      externalId
+    });
+  }
+
+  // Only update lines for games that haven't started yet (15 min buffer)
+  const now = new Date();
+  const cutoffTime = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes from now
+  
+  let gamesUpdated = 0;
+  for (const game of gamesToInsert) {
+    const gameStart = new Date(game.startTime);
+    
+    // Skip games that have already started or start within 15 minutes (lines locked)
+    if (gameStart <= cutoffTime) continue;
+    
+    // Update or insert the game
+    const existing = await db.query(`SELECT id FROM games WHERE external_id = $1`, [game.externalId]);
+    
+    if (existing.rows.length > 0) {
+      // Update existing game's lines (but not scores)
+      await db.query(
+        `UPDATE games SET favorite = $1, spread = $2, over_under = $3, start_time = $4 WHERE external_id = $5`,
+        [game.favorite, game.spreadAbs, game.total, game.startTime, game.externalId]
+      );
+    } else {
+      // Insert new game
+      await db.query(
+        `INSERT INTO games (week, away_team, home_team, favorite, spread, over_under, start_time, external_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [game.week, game.awayTeam, game.homeTeam, game.favorite, game.spreadAbs, game.total, game.startTime, game.externalId]
+      );
+    }
+    gamesUpdated++;
+  }
+
+  // Return summary by week
+  const weekSummary = {};
+  for (const game of gamesToInsert) {
+    weekSummary[game.week] = (weekSummary[game.week] || 0) + 1;
+  }
+
+  return { ok: true, gamesAdded: gamesUpdated, weekSummary };
+});
+
 app.post('/api/fetch-scores', async (req, res) => {
   try {
-    const data = await fetchOddsAPI('sports/americanfootball_nfl/scores/?daysFrom=3');
-
-    if (!Array.isArray(data)) {
-      return res.status(500).json({ error: 'Invalid response from Odds API', data });
-    }
-
-    let gamesUpdated = 0;
-
-    for (const game of data) {
-      if (!game.completed) continue;
-
-      const homeTeam = shortName(game.home_team);
-      const awayTeam = shortName(game.away_team);
-
-      const homeScore = game.scores?.find(s => shortName(s.name) === homeTeam)?.score;
-      const awayScore = game.scores?.find(s => shortName(s.name) === awayTeam)?.score;
-
-      if (homeScore === undefined || awayScore === undefined) continue;
-
-      const result = await db.query(
-        `UPDATE games SET home_score = $1, away_score = $2 WHERE external_id = $3`,
-        [parseInt(homeScore), parseInt(awayScore), game.id]
-      );
-
-      if (result.rowCount > 0) {
-        gamesUpdated++;
-
-        const dbGame = await db.query(`SELECT * FROM games WHERE external_id = $1`, [game.id]);
-        if (dbGame.rows[0]) {
-          await resolvePicksForGame(dbGame.rows[0], parseInt(homeScore), parseInt(awayScore));
-        }
-      }
-    }
-
-    res.json({ ok: true, gamesUpdated });
+    const result = await fetchAndUpdateScores();
+    res.json(result);
   } catch (err) {
     console.error('Error fetching scores:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// Reusable function for scheduler and API
+async function fetchAndUpdateScores() {
+  const data = await fetchOddsAPI('sports/americanfootball_nfl/scores/?daysFrom=3');
+
+  if (!Array.isArray(data)) {
+    throw new Error('Invalid response from Odds API');
+  }
+
+  let gamesUpdated = 0;
+
+  for (const game of data) {
+    if (!game.completed) continue;
+
+    const homeTeam = shortName(game.home_team);
+    const awayTeam = shortName(game.away_team);
+
+    const homeScore = game.scores?.find(s => shortName(s.name) === homeTeam)?.score;
+    const awayScore = game.scores?.find(s => shortName(s.name) === awayTeam)?.score;
+
+    if (homeScore === undefined || awayScore === undefined) continue;
+
+    const result = await db.query(
+      `UPDATE games SET home_score = $1, away_score = $2 WHERE external_id = $3`,
+      [parseInt(homeScore), parseInt(awayScore), game.id]
+    );
+
+    if (result.rowCount > 0) {
+      gamesUpdated++;
+
+      const dbGame = await db.query(`SELECT * FROM games WHERE external_id = $1`, [game.id]);
+      if (dbGame.rows[0]) {
+        await resolvePicksForGame(dbGame.rows[0], parseInt(homeScore), parseInt(awayScore));
+      }
+    }
+  }
+
+  return { ok: true, gamesUpdated };
 });
 
 async function resolvePicksForGame(game, homeScore, awayScore) {
@@ -525,6 +660,104 @@ app.get('/api/leaderboard/:leagueId', async (req, res) => {
   );
   
   res.json({ league: league.rows[0], scores: scores.rows });
+});
+
+// Seed historical scores for Week 16 and 17 (2025 season)
+// Run this once to populate scores that can't be fetched from API
+app.post('/api/seed-historical-scores', async (req, res) => {
+  try {
+    // Week 16 scores (Dec 18-22, 2025)
+    const week16Scores = [
+      { away: 'Rams', home: 'Seahawks', awayScore: 37, homeScore: 38 },
+      { away: 'Eagles', home: 'Commanders', awayScore: 29, homeScore: 18 },
+      { away: 'Packers', home: 'Bears', awayScore: 16, homeScore: 22 },
+      { away: 'Bills', home: 'Browns', awayScore: 23, homeScore: 20 },
+      { away: 'Chargers', home: 'Cowboys', awayScore: 34, homeScore: 17 },
+      { away: 'Chiefs', home: 'Titans', awayScore: 9, homeScore: 26 },
+      { away: 'Bengals', home: 'Dolphins', awayScore: 45, homeScore: 21 },
+      { away: 'Jets', home: 'Saints', awayScore: 6, homeScore: 29 },
+      { away: 'Vikings', home: 'Giants', awayScore: 16, homeScore: 13 },
+      { away: 'Buccaneers', home: 'Panthers', awayScore: 20, homeScore: 23 },
+      { away: 'Jaguars', home: 'Broncos', awayScore: 34, homeScore: 20 },
+      { away: 'Falcons', home: 'Cardinals', awayScore: 26, homeScore: 19 },
+      { away: 'Steelers', home: 'Lions', awayScore: 29, homeScore: 24 },
+      { away: 'Raiders', home: 'Texans', awayScore: 21, homeScore: 23 },
+      { away: 'Patriots', home: 'Ravens', awayScore: 28, homeScore: 24 },
+      { away: '49ers', home: 'Colts', awayScore: 48, homeScore: 27 },
+    ];
+
+    // Week 17 scores (Dec 25-29, 2025)
+    const week17Scores = [
+      { away: 'Cowboys', home: 'Commanders', awayScore: 30, homeScore: 23 },
+      { away: 'Lions', home: 'Vikings', awayScore: 10, homeScore: 23 },
+      { away: 'Broncos', home: 'Chiefs', awayScore: 20, homeScore: 13 },
+      { away: 'Texans', home: 'Chargers', awayScore: 20, homeScore: 16 },
+      { away: 'Ravens', home: 'Packers', awayScore: 41, homeScore: 24 },
+      { away: 'Cardinals', home: 'Bengals', awayScore: 14, homeScore: 37 },
+      { away: 'Steelers', home: 'Browns', awayScore: 6, homeScore: 13 },
+      { away: 'Saints', home: 'Titans', awayScore: 34, homeScore: 26 },
+      { away: 'Jaguars', home: 'Colts', awayScore: 23, homeScore: 17 },
+      { away: 'Buccaneers', home: 'Dolphins', awayScore: 17, homeScore: 20 },
+      { away: 'Patriots', home: 'Jets', awayScore: 42, homeScore: 10 },
+      { away: 'Seahawks', home: 'Panthers', awayScore: 27, homeScore: 10 },
+      { away: 'Giants', home: 'Raiders', awayScore: 34, homeScore: 10 },
+      { away: 'Eagles', home: 'Bills', awayScore: 13, homeScore: 12 },
+      { away: 'Bears', home: '49ers', awayScore: 38, homeScore: 42 },
+      // Rams @ Falcons is Monday night - not yet played
+    ];
+
+    let updated = 0;
+    let inserted = 0;
+
+    // Helper to insert game if missing, then update score
+    async function upsertGameScore(week, away, home, awayScore, homeScore) {
+      // Try to update first
+      const result = await db.query(
+        `UPDATE games SET home_score = $1, away_score = $2 
+         WHERE week = $3 AND home_team = $4 AND away_team = $5`,
+        [homeScore, awayScore, week, home, away]
+      );
+      
+      if (result.rowCount > 0) {
+        // Game existed, resolve picks
+        const dbGame = await db.query(
+          `SELECT * FROM games WHERE week = $1 AND home_team = $2 AND away_team = $3`,
+          [week, home, away]
+        );
+        if (dbGame.rows[0]) {
+          await resolvePicksForGame(dbGame.rows[0], homeScore, awayScore);
+        }
+        return 'updated';
+      } else {
+        // Game doesn't exist, insert it with scores
+        await db.query(
+          `INSERT INTO games (week, away_team, home_team, favorite, spread, over_under, start_time, home_score, away_score)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)`,
+          [week, away, home, home, 0, 0, homeScore, awayScore]
+        );
+        return 'inserted';
+      }
+    }
+
+    // Update Week 16
+    for (const game of week16Scores) {
+      const action = await upsertGameScore(16, game.away, game.home, game.awayScore, game.homeScore);
+      if (action === 'updated') updated++;
+      else inserted++;
+    }
+
+    // Update Week 17
+    for (const game of week17Scores) {
+      const action = await upsertGameScore(17, game.away, game.home, game.awayScore, game.homeScore);
+      if (action === 'updated') updated++;
+      else inserted++;
+    }
+
+    res.json({ ok: true, gamesUpdated: updated, gamesInserted: inserted, message: `Updated ${updated} games, inserted ${inserted} new games` });
+  } catch (err) {
+    console.error('Error seeding historical scores:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/seed', async (req, res) => {
