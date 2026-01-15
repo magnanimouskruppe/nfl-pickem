@@ -3,6 +3,33 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } fro
 import api from './api';
 import { auth, loginWithGoogle, logout } from './firebase';
 
+// Synthwave Theme Styles
+const theme = {
+  // Backgrounds
+  pageBg: 'min-h-screen bg-gradient-to-b from-[#1a0533] via-[#0d0d1a] to-[#1a0a2e]',
+  cardBg: 'bg-black/40 backdrop-blur border border-purple-500/30 rounded-xl',
+  cardGlow: { boxShadow: '0 0 30px rgba(168,85,247,0.15), inset 0 0 30px rgba(168,85,247,0.05)' },
+  
+  // Text
+  heading: 'font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent',
+  subtext: 'text-purple-300/60',
+  
+  // Buttons
+  btnPrimary: 'bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-lg hover:from-pink-400 hover:to-purple-400 transition-all',
+  btnSecondary: 'text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all',
+  btnOutline: 'border border-purple-500/50 text-purple-300 hover:bg-purple-500/10 rounded-lg transition-all',
+  
+  // Inputs
+  input: 'bg-black/50 border border-purple-500/30 rounded-lg text-white placeholder-gray-500 focus:border-pink-500/50 focus:outline-none focus:ring-1 focus:ring-pink-500/30',
+  select: 'bg-black/50 border border-purple-500/30 rounded-lg text-purple-300 focus:border-pink-500/50 focus:outline-none',
+  
+  // Status colors
+  success: 'bg-green-500/20 text-green-400 border border-green-500/50',
+  error: 'bg-red-500/20 text-red-400 border border-red-500/50',
+  warning: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50',
+  pending: 'bg-purple-500/20 text-purple-400 border border-purple-500/50',
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('howItWorks');
@@ -138,31 +165,35 @@ export default function App() {
     const showBrowserWarning = isEmbeddedBrowser || isIOSInApp;
 
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow text-center max-w-md">
-          <h1 className="text-3xl font-bold mb-4">NFL Pickem</h1>
-          {inviteCode && <p className="text-gray-600 mb-4">Sign in to join the league</p>}
+      <div className={`${theme.pageBg} flex items-center justify-center p-4`}>
+        <div className={`${theme.cardBg} p-8 text-center max-w-md`} style={theme.cardGlow}>
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🏈</span>
+          </div>
+          <h1 className={`text-3xl ${theme.heading} mb-2`}>NFL PICK'EM</h1>
+          <p className={`${theme.subtext} text-sm mb-6`}>Confidence-based picks competition</p>
+          {inviteCode && <p className="text-purple-300 mb-4">Sign in to join the league</p>}
           
           {showBrowserWarning ? (
             <div className="text-left">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <p className="text-yellow-800 font-medium mb-2">Open in Safari to sign in</p>
-                <p className="text-yellow-700 text-sm mb-3">
+              <div className={`${theme.warning} rounded-lg p-4 mb-4`}>
+                <p className="font-medium mb-2">Open in Safari to sign in</p>
+                <p className="text-sm mb-3 opacity-80">
                   Google sign-in doesn't work in this browser. Please open this page in Safari or Chrome.
                 </p>
-                <p className="text-yellow-700 text-sm font-medium">On iPhone:</p>
-                <ol className="text-yellow-700 text-sm list-decimal ml-4 space-y-1">
+                <p className="text-sm font-medium">On iPhone:</p>
+                <ol className="text-sm list-decimal ml-4 space-y-1 opacity-80">
                   <li>Tap the share button <span className="inline-block">&#xFEFF;↗</span> at the bottom</li>
                   <li>Select "Open in Safari"</li>
                 </ol>
               </div>
-              <button onClick={loginWithGoogle} className="w-full bg-gray-300 text-gray-600 px-6 py-2 rounded cursor-not-allowed">
+              <button onClick={loginWithGoogle} className="w-full bg-gray-700 text-gray-400 px-6 py-3 rounded-lg cursor-not-allowed">
                 Sign in with Google
               </button>
-              <p className="text-xs text-gray-500 mt-2">Or try anyway - it might work in some browsers</p>
+              <p className="text-xs text-purple-300/60 mt-2">Or try anyway - it might work in some browsers</p>
             </div>
           ) : (
-            <button onClick={loginWithGoogle} className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+            <button onClick={loginWithGoogle} className={`${theme.btnPrimary} w-full px-6 py-3`}>
               Sign in with Google
             </button>
           )}
@@ -173,8 +204,8 @@ export default function App() {
 
   if (leagueLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+      <div className={`${theme.pageBg} flex items-center justify-center`}>
+        <div className="text-purple-300">Loading...</div>
       </div>
     );
   }
@@ -186,56 +217,57 @@ export default function App() {
 
   if (!currentWeek) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-gray-600">Loading games...</div>
+      <div className={`${theme.pageBg} flex items-center justify-center`}>
+        <div className="text-purple-300">Loading games...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-2 sm:p-4">
+    <div className={`${theme.pageBg} p-2 sm:p-4`}>
       <div className="max-w-6xl mx-auto">
-        <header className="bg-white rounded-lg shadow mb-4 sm:mb-6 p-4 sm:p-6">
+        <header className={`${theme.cardBg} mb-4 sm:mb-6 p-4 sm:p-6`} style={theme.cardGlow}>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 mb-4">
             {/* League Switcher */}
             <div className="relative">
               <button 
                 onClick={() => setShowLeagueSwitcher(!showLeagueSwitcher)}
-                className="flex items-center gap-2 text-2xl sm:text-3xl font-bold text-gray-900 hover:text-gray-700"
+                className={`flex items-center gap-2 text-2xl sm:text-3xl ${theme.heading}`}
               >
                 {league.name}
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
+              <p className={`${theme.subtext} text-xs mt-1`}>{leagueMembers.length} members</p>
               
               {showLeagueSwitcher && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowLeagueSwitcher(false)} />
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border z-20">
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-black/90 backdrop-blur rounded-xl border border-purple-500/30 z-20" style={{ boxShadow: '0 0 30px rgba(168,85,247,0.3)' }}>
                     <div className="p-2">
-                      <div className="text-xs font-medium text-gray-500 px-3 py-2">YOUR LEAGUES</div>
+                      <div className="text-xs font-medium text-purple-400 px-3 py-2">YOUR LEAGUES</div>
                       {allLeagues.map(l => (
                         <button
                           key={l.id}
                           onClick={() => selectLeague(l.id)}
-                          className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 ${l.id === activeLeagueId ? 'bg-blue-50 text-blue-700' : ''}`}
+                          className={`w-full text-left px-3 py-2 rounded-lg transition-all ${l.id === activeLeagueId ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30' : 'hover:bg-white/5'}`}
                         >
-                          <div className="font-medium">{l.name}</div>
-                          <div className="text-xs text-gray-500">{l.memberCount} members</div>
+                          <div className={`font-medium ${l.id === activeLeagueId ? 'text-pink-400' : 'text-white'}`}>{l.name}</div>
+                          <div className="text-xs text-purple-300/60">{l.memberCount} members</div>
                         </button>
                       ))}
                     </div>
-                    <div className="border-t p-2">
+                    <div className="border-t border-purple-500/30 p-2">
                       <button
                         onClick={() => { setShowLeagueSwitcher(false); setView('joinLeague'); }}
-                        className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-gray-700"
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-purple-300"
                       >
                         + Join a League
                       </button>
                       <button
                         onClick={() => { setShowLeagueSwitcher(false); setView('createLeague'); }}
-                        className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-gray-700"
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-purple-300"
                       >
                         + Create a League
                       </button>
@@ -246,11 +278,17 @@ export default function App() {
             </div>
             
             <div className="flex items-center gap-4">
-              <span className="text-gray-600 text-sm sm:text-base">{user.displayName}</span>
-              <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Logout</button>
+              <div className="text-right hidden sm:block">
+                <p className="text-white font-semibold">{user.displayName}</p>
+                <p className={`${theme.subtext} text-xs`}>Week {currentWeek}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                {user.displayName?.charAt(0) || '?'}
+              </div>
+              <button onClick={logout} className={`${theme.btnOutline} text-sm px-3 py-1`}>Logout</button>
             </div>
           </div>
-          <nav className="flex flex-wrap gap-1 sm:gap-2">
+          <nav className="flex flex-wrap gap-1 sm:gap-2 bg-black/30 p-1 rounded-lg">
             {[
               { id: 'howItWorks', label: 'How It Works', fullLabel: 'How It Works' },
               { id: 'games', label: "Games", fullLabel: "This Week's Games" },
@@ -261,7 +299,7 @@ export default function App() {
               { id: 'league', label: 'League', fullLabel: 'League' },
             ].map((tab) => (
               <button key={tab.id} onClick={() => setView(tab.id)}
-                className={`px-2 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium ${view === tab.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                className={`px-2 sm:px-4 py-2 rounded-lg text-sm sm:text-base font-medium transition-all ${view === tab.id ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <span className="sm:hidden">{tab.label}</span>
                 <span className="hidden sm:inline">{tab.fullLabel}</span>
               </button>
@@ -344,22 +382,22 @@ function LeagueSetup({ user, onComplete }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-lg shadow max-w-md w-full">
-        <h1 className="text-2xl font-bold mb-2">Welcome, {user.displayName}!</h1>
-        <p className="text-gray-600 mb-6">You're not in a league yet. Create one or join an existing league.</p>
+    <div className={`${theme.pageBg} flex items-center justify-center p-4`}>
+      <div className={`${theme.cardBg} p-8 max-w-md w-full`} style={theme.cardGlow}>
+        <h1 className={`text-2xl ${theme.heading} mb-2`}>Welcome, {user.displayName}!</h1>
+        <p className={`${theme.subtext} mb-6`}>You're not in a league yet. Create one or join an existing league.</p>
 
         {!mode && (
           <div className="space-y-3">
             <button 
               onClick={() => setMode('create')}
-              className="w-full bg-blue-500 text-white px-6 py-3 rounded font-medium hover:bg-blue-600"
+              className={`w-full ${theme.btnPrimary} px-6 py-3`}
             >
               Create a New League
             </button>
             <button 
               onClick={() => setMode('join')}
-              className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded font-medium hover:bg-gray-200"
+              className={`w-full ${theme.btnOutline} px-6 py-3`}
             >
               Join an Existing League
             </button>
@@ -369,27 +407,27 @@ function LeagueSetup({ user, onComplete }) {
         {mode === 'create' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
+              <label className="block text-sm font-medium text-purple-300 mb-1">League Name</label>
               <input
                 type="text"
                 value={leagueName}
                 onChange={(e) => setLeagueName(e.target.value)}
                 placeholder="e.g., Playoffs 2025"
-                className="w-full border rounded px-3 py-2"
+                className={`w-full ${theme.input} px-3 py-2`}
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-red-400 text-sm">{error}</p>}
             <div className="flex gap-3">
               <button 
                 onClick={() => setMode(null)}
-                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded font-medium"
+                className={`flex-1 ${theme.btnOutline} px-4 py-2`}
               >
                 Back
               </button>
               <button 
                 onClick={handleCreate}
                 disabled={loading}
-                className="flex-1 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+                className={`flex-1 ${theme.btnPrimary} px-4 py-2 disabled:opacity-50`}
               >
                 {loading ? 'Creating...' : 'Create League'}
               </button>
@@ -400,32 +438,32 @@ function LeagueSetup({ user, onComplete }) {
         {mode === 'join' && (
           <div className="space-y-4">
             {previewLeague && (
-              <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800">
+              <div className={`${theme.success} rounded-lg p-3`}>
                 Joining: <strong>{previewLeague.name}</strong> ({previewLeague.memberCount} members)
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Invite Code</label>
+              <label className="block text-sm font-medium text-purple-300 mb-1">Invite Code</label>
               <input
                 type="text"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 placeholder="e.g., ABC123XY"
-                className="w-full border rounded px-3 py-2 uppercase"
+                className={`w-full ${theme.input} px-3 py-2 uppercase`}
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-red-400 text-sm">{error}</p>}
             <div className="flex gap-3">
               <button 
                 onClick={() => { setMode(null); setPreviewLeague(null); }}
-                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded font-medium"
+                className={`flex-1 ${theme.btnOutline} px-4 py-2`}
               >
                 Back
               </button>
               <button 
                 onClick={handleJoin}
                 disabled={loading}
-                className="flex-1 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+                className={`flex-1 ${theme.btnPrimary} px-4 py-2 disabled:opacity-50`}
               >
                 {loading ? 'Joining...' : 'Join League'}
               </button>
@@ -433,8 +471,8 @@ function LeagueSetup({ user, onComplete }) {
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t text-center">
-          <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">
+        <div className="mt-6 pt-4 border-t border-purple-500/30 text-center">
+          <button onClick={logout} className="text-sm text-purple-400 hover:text-purple-300">
             Sign out
           </button>
         </div>
@@ -477,18 +515,18 @@ function JoinLeagueView({ onComplete, onCancel }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-4">Join a League</h2>
+    <div className={`${theme.cardBg} p-6 max-w-md mx-auto`} style={theme.cardGlow}>
+      <h2 className={`text-xl ${theme.heading} mb-4`}>Join a League</h2>
       
       {previewLeague && (
-        <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800 mb-4">
+        <div className={`${theme.success} rounded-lg p-3 mb-4`}>
           Found: <strong>{previewLeague.name}</strong> ({previewLeague.memberCount} members)
         </div>
       )}
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Invite Code</label>
+          <label className="block text-sm font-medium text-purple-300 mb-1">Invite Code</label>
           <input
             type="text"
             value={inviteCode}
@@ -498,23 +536,23 @@ function JoinLeagueView({ onComplete, onCancel }) {
               handlePreview(val);
             }}
             placeholder="e.g., ABC123XY"
-            className="w-full border rounded px-3 py-2 uppercase"
+            className={`w-full ${theme.input} px-3 py-2 uppercase`}
           />
         </div>
         
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p className="text-red-400 text-sm">{error}</p>}
         
         <div className="flex gap-3">
           <button 
             onClick={onCancel}
-            className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded font-medium"
+            className={`flex-1 ${theme.btnOutline} px-4 py-2`}
           >
             Cancel
           </button>
           <button 
             onClick={handleJoin}
             disabled={loading}
-            className="flex-1 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+            className={`flex-1 ${theme.btnPrimary} px-4 py-2 disabled:opacity-50`}
           >
             {loading ? 'Joining...' : 'Join League'}
           </button>
@@ -547,34 +585,34 @@ function CreateLeagueView({ onComplete, onCancel }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-4">Create a League</h2>
+    <div className={`${theme.cardBg} p-6 max-w-md mx-auto`} style={theme.cardGlow}>
+      <h2 className={`text-xl ${theme.heading} mb-4`}>Create a League</h2>
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">League Name</label>
+          <label className="block text-sm font-medium text-purple-300 mb-1">League Name</label>
           <input
             type="text"
             value={leagueName}
             onChange={(e) => setLeagueName(e.target.value)}
             placeholder="e.g., Playoffs 2025"
-            className="w-full border rounded px-3 py-2"
+            className={`w-full ${theme.input} px-3 py-2`}
           />
         </div>
         
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p className="text-red-400 text-sm">{error}</p>}
         
         <div className="flex gap-3">
           <button 
             onClick={onCancel}
-            className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded font-medium"
+            className={`flex-1 ${theme.btnOutline} px-4 py-2`}
           >
             Cancel
           </button>
           <button 
             onClick={handleCreate}
             disabled={loading}
-            className="flex-1 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+            className={`flex-1 ${theme.btnPrimary} px-4 py-2 disabled:opacity-50`}
           >
             {loading ? 'Creating...' : 'Create League'}
           </button>
@@ -659,13 +697,13 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">League Settings</h2>
+          <h2 className={`text-xl ${theme.heading}`}>League Settings</h2>
           {isAdmin && !editing && (
             <button 
               onClick={() => setEditing(true)}
-              className="text-blue-500 hover:text-blue-700 text-sm font-medium"
+              className="text-pink-400 hover:text-pink-300 text-sm font-medium"
             >
               Edit
             </button>
@@ -674,22 +712,22 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">League Name</label>
+            <label className={`block text-sm font-medium ${theme.subtext} mb-1`}>League Name</label>
             {editing ? (
               <input
                 type="text"
                 value={settings.name}
                 onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-                className="w-full border rounded px-3 py-2"
+                className={`w-full ${theme.input} px-3 py-2`}
               />
             ) : (
-              <div className="text-lg font-medium">{league.name}</div>
+              <div className="text-lg font-medium text-white">{league.name}</div>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">$ Per Point</label>
+              <label className={`block text-sm font-medium ${theme.subtext} mb-1`}>$ Per Point</label>
               {editing ? (
                 <input
                   type="number"
@@ -697,14 +735,14 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
                   step="0.5"
                   value={settings.dollarPerPoint}
                   onChange={(e) => setSettings({ ...settings, dollarPerPoint: parseFloat(e.target.value) })}
-                  className="w-full border rounded px-3 py-2"
+                  className={`w-full ${theme.input} px-3 py-2`}
                 />
               ) : (
-                <div className="text-lg">${league.dollarPerPoint}</div>
+                <div className="text-lg text-white">${league.dollarPerPoint}</div>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">Weekly Bonus</label>
+              <label className={`block text-sm font-medium ${theme.subtext} mb-1`}>Weekly Bonus</label>
               {editing ? (
                 <input
                   type="number"
@@ -712,10 +750,10 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
                   step="0.5"
                   value={settings.weeklyBonus}
                   onChange={(e) => setSettings({ ...settings, weeklyBonus: parseFloat(e.target.value) })}
-                  className="w-full border rounded px-3 py-2"
+                  className={`w-full ${theme.input} px-3 py-2`}
                 />
               ) : (
-                <div className="text-lg">${league.weeklyBonus}</div>
+                <div className="text-lg text-white">${league.weeklyBonus}</div>
               )}
             </div>
           </div>
@@ -725,7 +763,7 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+                className={`${theme.btnPrimary} px-4 py-2 disabled:opacity-50`}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -738,7 +776,7 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
                     weeklyBonus: league.weeklyBonus,
                   });
                 }}
-                className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200"
+                className={`${theme.btnOutline} px-4 py-2`}
               >
                 Cancel
               </button>
@@ -746,43 +784,43 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-2">Invite Link</label>
+            <label className={`block text-sm font-medium ${theme.subtext} mb-2`}>Invite Link</label>
             <div className="flex gap-2">
               <input 
                 type="text" 
                 readOnly 
                 value={inviteUrl}
-                className="flex-1 border rounded px-3 py-2 bg-gray-50 text-sm"
+                className={`flex-1 ${theme.input} px-3 py-2 text-sm`}
               />
               <button 
                 onClick={copyLink}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                className={`${theme.btnPrimary} px-4 py-2`}
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
             </div>
-            <p className="text-sm text-gray-500 mt-1">Share this link with friends to invite them</p>
+            <p className={`text-sm ${theme.subtext} mt-1`}>Share this link with friends to invite them</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Members ({members.length})</h2>
+      <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
+        <h2 className={`text-xl ${theme.heading} mb-4`}>Members ({members.length})</h2>
         <div className="space-y-2">
           {members.map(member => (
-            <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-0">
+            <div key={member.id} className="flex items-center justify-between py-2 border-b border-purple-500/20 last:border-0">
               <div>
-                <div className="font-medium">{member.name}</div>
-                <div className="text-sm text-gray-500">{member.email}</div>
+                <div className="font-medium text-white">{member.name}</div>
+                <div className={`text-sm ${theme.subtext}`}>{member.email}</div>
               </div>
               <div className="flex items-center gap-2">
                 {member.id === league.adminId && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Admin</span>
+                  <span className="text-xs bg-pink-500/20 text-pink-400 px-2 py-1 rounded border border-pink-500/50">Admin</span>
                 )}
                 {isAdmin && member.id !== league.adminId && (
                   <button
                     onClick={() => handleRemoveMember(member.id, member.name)}
-                    className="text-xs text-red-500 hover:text-red-700"
+                    className="text-xs text-red-400 hover:text-red-300"
                   >
                     Remove
                   </button>
@@ -794,17 +832,17 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
       </div>
 
       {isAdmin && (
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Admin Tools</h2>
-          <p className="text-sm text-gray-600 mb-4">
+        <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
+          <h2 className={`text-xl ${theme.heading} mb-4`}>Admin Tools</h2>
+          <p className={`text-sm ${theme.subtext} mb-4`}>
             Refresh game data from the odds provider. Use sparingly - API has limited requests per month.
           </p>
           
           {refreshMessage && (
             <div className={`mb-4 p-3 rounded text-sm ${
               refreshMessage.type === 'success' 
-                ? 'bg-green-50 text-green-700 border border-green-200' 
-                : 'bg-red-50 text-red-700 border border-red-200'
+                ? theme.success
+                : theme.error
             }`}>
               {refreshMessage.text}
             </div>
@@ -814,14 +852,14 @@ function LeagueView({ league, members, isAdmin, onLeagueUpdate }) {
             <button
               onClick={handleRefreshOdds}
               disabled={refreshingOdds}
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 disabled:opacity-50"
+              className={`${theme.btnOutline} px-4 py-2 disabled:opacity-50`}
             >
               {refreshingOdds ? 'Refreshing...' : 'Refresh Lines/Odds'}
             </button>
             <button
               onClick={handleRefreshScores}
               disabled={refreshingScores}
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 disabled:opacity-50"
+              className={`${theme.btnOutline} px-4 py-2 disabled:opacity-50`}
             >
               {refreshingScores ? 'Refreshing...' : 'Refresh Scores'}
             </button>
@@ -888,9 +926,9 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
   return (
     <div className="space-y-6">
       {/* Chart */}
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Week {week} Scoreboard</h2>
+          <h2 className="text-xl font-bold text-white">Week {week} Scoreboard</h2>
           {availableWeeks.length > 0 && (
             <select 
               className="border rounded px-3 py-1 text-base font-medium w-fit"
@@ -916,10 +954,10 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6 overflow-x-auto">
+      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b-2 border-gray-200">
+            <tr className="border-b-2 border-purple-500/30">
               <th className="text-left py-2 px-2 font-bold">Player</th>
               <th className="text-center py-2 px-2 font-bold" colSpan={2}>Point Results</th>
               <th className="text-center py-2 px-2 font-bold" colSpan={2}>Points vs Avg</th>
@@ -927,7 +965,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
                 <th key={conf} className="text-center py-2 px-1 font-bold min-w-[80px]">{conf}</th>
               ))}
             </tr>
-            <tr className="border-b border-gray-200 text-gray-500 text-xs">
+            <tr className="border-b border-purple-500/30 text-purple-300/60 text-xs">
               <th></th>
               <th className="py-1 px-2">Current</th>
               <th className="py-1 px-2">Pot'l Max</th>
@@ -944,7 +982,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
               const vsAvgPotential = (player.potential - parseFloat(avgPotential)).toFixed(0);
 
               return (
-                <tr key={player.id} className="border-b border-gray-100">
+                <tr key={player.id} className="border-b border-purple-500/20">
                   <td className="py-2 px-2 font-semibold whitespace-nowrap">{player.name}</td>
                   <td className="py-2 px-2 text-center">{player.current}</td>
                   <td className="py-2 px-2 text-center">{player.potential}</td>
@@ -960,7 +998,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
                     const isHidden = pick && !pick.pick_type;
                     const isCurrentUser = player.id === currentUserId;
 
-                    let bgColor = 'bg-gray-50';
+                    let bgColor = 'bg-black/30';
                     let textColor = 'text-gray-400';
                     let content = '-';
 
@@ -971,11 +1009,11 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
                     } else if (pick) {
                       content = getPickLabel(game, pick.pick_type, pick.pick_value);
                       if (pick.correct === 1) {
-                        bgColor = 'bg-green-100';
-                        textColor = 'text-green-700';
+                        bgColor = 'bg-green-500/20';
+                        textColor = 'text-green-400';
                       } else if (pick.correct === 0) {
-                        bgColor = 'bg-red-100';
-                        textColor = 'text-red-700';
+                        bgColor = 'bg-red-500/20';
+                        textColor = 'text-red-400';
                       } else {
                         bgColor = 'bg-blue-50';
                         textColor = 'text-blue-700';
@@ -992,7 +1030,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
               );
             })}
             {/* Average row */}
-            <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
+            <tr className="border-t-2 border-gray-300 bg-black/30 font-semibold">
               <td className="py-2 px-2">Average</td>
               <td className="py-2 px-2 text-center">{avgCurrent}</td>
               <td className="py-2 px-2 text-center">{avgPotential}</td>
@@ -1025,9 +1063,9 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+    <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-        <h2 className="text-xl font-bold text-gray-900">Week {week} Games</h2>
+        <h2 className="text-xl font-bold text-white">Week {week} Games</h2>
         {availableWeeks.length > 0 && (
           <select 
             className="border rounded px-3 py-1 text-base font-medium w-fit"
@@ -1043,7 +1081,7 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b-2 border-gray-200">
+            <tr className="border-b-2 border-purple-500/30">
               <th className="text-left py-3 px-2">Matchup</th>
               <th className="text-center py-3 px-2">Spread</th>
               <th className="text-center py-3 px-2">Over/Under</th>
@@ -1055,11 +1093,11 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
               const spreads = formatSpread(game);
               const score = formatScore(game);
               return (
-                <tr key={game.id} className="border-b border-gray-100">
+                <tr key={game.id} className="border-b border-purple-500/20">
                   <td className="py-3 px-2">
                     <div className="flex flex-col">
                       <span className="font-medium">{game.away_team}</span>
-                      <span className="text-gray-500">@ {game.home_team}</span>
+                      <span className="text-purple-300/60">@ {game.home_team}</span>
                     </div>
                   </td>
                   <td className="text-center py-3 px-2">
@@ -1137,9 +1175,9 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+    <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-        <h2 className="text-xl font-bold text-gray-900">Week {week} Picks</h2>
+        <h2 className="text-xl font-bold text-white">Week {week} Picks</h2>
         {availableWeeks.length > 0 && (
           <select 
             className="border rounded px-3 py-1 text-base font-medium w-fit"
@@ -1153,14 +1191,14 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
         )}
       </div>
       
-      <div className="border-b-2 border-gray-200 pb-3 mb-4 hidden sm:block">
+      <div className="border-b-2 border-purple-500/30 pb-3 mb-4 hidden sm:block">
         <div className="flex items-center">
           <div className="w-16 text-center">
-            <div className="text-sm font-bold text-gray-700">Points</div>
+            <div className="text-sm font-bold text-gray-300">Points</div>
           </div>
           <div className="flex-1 grid grid-cols-2 gap-3 ml-4">
-            <div className="text-sm font-bold text-gray-700 text-center">Select Game</div>
-            <div className="text-sm font-bold text-gray-700 text-center">Select Pick</div>
+            <div className="text-sm font-bold text-gray-300 text-center">Select Game</div>
+            <div className="text-sm font-bold text-gray-300 text-center">Select Pick</div>
           </div>
         </div>
       </div>
@@ -1182,12 +1220,12 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
                     <div className="flex-1 ml-4 mr-3">
                       <div className={`rounded p-3 ${hasGameStarted(pick) ? 'bg-gray-100' : 'bg-blue-50'}`}>
                         <div className="font-semibold text-sm">{pick.game?.away_team} @ {pick.game?.home_team}</div>
-                        <div className={`font-bold ${hasGameStarted(pick) ? 'text-gray-600' : 'text-blue-600'}`}>{getPickLabel(pick.game, pick.pickType, pick.pickValue)}</div>
-                        {hasGameStarted(pick) && <div className="text-xs text-gray-500 mt-1">Game started - locked</div>}
+                        <div className={`font-bold ${hasGameStarted(pick) ? 'text-purple-300/60' : 'text-blue-600'}`}>{getPickLabel(pick.game, pick.pickType, pick.pickValue)}</div>
+                        {hasGameStarted(pick) && <div className="text-xs text-purple-300/60 mt-1">Game started - locked</div>}
                       </div>
                     </div>
                     {!hasGameStarted(pick) && (
-                      <button onClick={() => onClear(conf)} className="text-red-500 hover:text-red-700 text-sm">
+                      <button onClick={() => onClear(conf)} className="text-red-500 hover:text-red-400 text-sm">
                         Clear
                       </button>
                     )}
@@ -1250,9 +1288,9 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+    <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-        <h2 className="text-xl font-bold text-gray-900">Week {week} Picks</h2>
+        <h2 className="text-xl font-bold text-white">Week {week} Picks</h2>
         <div className="flex flex-wrap gap-2">
           {availableWeeks.length > 0 && (
             <select 
@@ -1277,13 +1315,13 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
         </div>
       </div>
 
-      <div className="border-b-2 border-gray-200 pb-3 mb-4 hidden sm:block">
+      <div className="border-b-2 border-purple-500/30 pb-3 mb-4 hidden sm:block">
         <div className="flex items-center">
           <div className="w-16 text-center">
-            <div className="text-sm font-bold text-gray-700">Points</div>
+            <div className="text-sm font-bold text-gray-300">Points</div>
           </div>
           <div className="flex-1 ml-4">
-            <div className="text-sm font-bold text-gray-700 text-center">Pick Details</div>
+            <div className="text-sm font-bold text-gray-300 text-center">Pick Details</div>
           </div>
         </div>
       </div>
@@ -1294,9 +1332,9 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
           const game = pick ? games.find(g => g.id === pick.game_id) : null;
           const isHidden = pick && !pick.pick_type;
 
-          let bgColor = 'bg-gray-50';
-          let borderColor = 'border-gray-200';
-          let textColor = 'text-gray-500';
+          let bgColor = 'bg-black/30';
+          let borderColor = 'border-purple-500/30';
+          let textColor = 'text-purple-300/60';
 
           if (pick?.correct === 1) {
             bgColor = 'bg-green-50';
@@ -1320,11 +1358,11 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
                 </div>
                 <div className="flex-1 ml-4">
                   {isHidden ? (
-                    <div className="bg-gray-100 rounded p-3 text-center text-gray-500">
+                    <div className="bg-gray-100 rounded p-3 text-center text-purple-300/60">
                       Pick hidden until game starts
                     </div>
                   ) : !pick ? (
-                    <div className="bg-gray-50 rounded p-3 text-center text-gray-400">
+                    <div className="bg-black/30 rounded p-3 text-center text-gray-400">
                       No pick selected
                     </div>
                   ) : (
@@ -1355,13 +1393,13 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
 function HowItWorksView({ league }) {
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">How It Works</h2>
+      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-white mb-4">How It Works</h2>
         
         <div className="space-y-6">
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">The Basics</h3>
-            <p className="text-gray-600">
+            <p className="text-purple-300/60">
               Each week, you make <strong>10 picks</strong> against the spread or on over/unders. 
               You assign each pick a <strong>confidence level from 1-10</strong> (each number used exactly once). 
               If your pick is correct, you earn that many points.
@@ -1370,7 +1408,7 @@ function HowItWorksView({ league }) {
 
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">Making Picks</h3>
-            <ul className="text-gray-600 space-y-1">
+            <ul className="text-purple-300/60 space-y-1">
               <li>• <strong>Spread picks:</strong> Pick the favorite to win by more than the spread, or the underdog to cover</li>
               <li>• <strong>Over/Under picks:</strong> Pick whether the total points scored will be over or under the line</li>
               <li>• You can make up to 2 picks per game (one spread, one over/under)</li>
@@ -1380,7 +1418,7 @@ function HowItWorksView({ league }) {
 
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">Scoring</h3>
-            <ul className="text-gray-600 space-y-1">
+            <ul className="text-purple-300/60 space-y-1">
               <li>• Correct pick = confidence points earned (1-10)</li>
               <li>• Wrong pick = 0 points</li>
               <li>• Maximum possible per week = 55 points (10+9+8+...+1)</li>
@@ -1390,7 +1428,7 @@ function HowItWorksView({ league }) {
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">Weekly Payouts</h3>
             <div className="bg-blue-50 rounded-lg p-4">
-              <ul className="text-gray-700 space-y-1">
+              <ul className="text-gray-300 space-y-1">
                 <li>• <strong>Points payout:</strong> ${league.dollarPerPoint} for every point above/below the weekly average</li>
                 <li>• <strong>Weekly bonus:</strong> Winner(s) collect ${league.weeklyBonus} from each non-winner</li>
               </ul>
@@ -1399,7 +1437,7 @@ function HowItWorksView({ league }) {
 
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">Example</h3>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-gray-600">
+            <div className="bg-black/30 rounded-lg p-4 space-y-2 text-purple-300/60">
               <p>
                 <span className="text-green-600">✓</span> You pick <strong>Chiefs -3.5</strong> with <strong>10 confidence</strong>. 
                 Chiefs win by 7. <span className="text-green-600 font-semibold">You earn 10 points!</span>
@@ -1413,9 +1451,9 @@ function HowItWorksView({ league }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Tips</h2>
-        <ul className="text-gray-600 space-y-2">
+      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-white mb-4">Quick Tips</h2>
+        <ul className="text-purple-300/60 space-y-2">
           <li>• Put high confidence on picks you feel strongest about</li>
           <li>• You can't pick both sides of the same spread or total</li>
           <li>• Check the Gamecenter tab to see live standings during games</li>
@@ -1509,7 +1547,7 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-6 text-center text-purple-300/60">
         Loading results...
       </div>
     );
@@ -1520,9 +1558,9 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Week Results</h2>
+          <h2 className="text-xl font-bold text-white">Week Results</h2>
           <select 
             className="border rounded px-3 py-1 bg-white w-fit"
             value={selectedWeek}
@@ -1534,7 +1572,7 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
           </select>
         </div>
         
-        <div className="text-sm text-gray-600 mb-4">
+        <div className="text-sm text-purple-300/60 mb-4">
           ${league.dollarPerPoint} per point • ${league.weeklyBonus} weekly bonus per player
         </div>
         
@@ -1573,8 +1611,8 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Season Totals</h2>
+      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-white mb-4">Season Totals</h2>
         <div className="space-y-3">
           {seasonTotals.sort((a, b) => b.seasonTotal - a.seasonTotal).map((player, i) => (
             <div key={player.id} className="border rounded-lg p-4 flex justify-between items-center">
@@ -1582,14 +1620,14 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
                 <div className="text-2xl font-bold text-gray-400">#{i + 1}</div>
                 <div>
                   <div className="font-semibold">{player.name}</div>
-                  <div className="text-sm text-gray-600">Through {availableWeeks.length} weeks</div>
+                  <div className="text-sm text-purple-300/60">Through {availableWeeks.length} weeks</div>
                 </div>
               </div>
               <div className="text-right">
                 <div className={`text-xl font-bold ${player.seasonTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(player.seasonTotal)}
                 </div>
-                <div className="text-sm text-gray-500">Season Total</div>
+                <div className="text-sm text-purple-300/60">Season Total</div>
               </div>
             </div>
           ))}
