@@ -926,7 +926,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
   return (
     <div className="space-y-6">
       {/* Chart */}
-      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+      <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h2 className="text-xl font-bold text-white">Week {week} Scoreboard</h2>
           {availableWeeks.length > 0 && (
@@ -954,7 +954,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
       </div>
 
       {/* Table */}
-      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6 overflow-x-auto">
+      <div className={`${theme.cardBg} p-4 sm:p-6 overflow-x-auto`} style={theme.cardGlow}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b-2 border-purple-500/30">
@@ -1063,7 +1063,7 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
   };
 
   return (
-    <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+    <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <h2 className="text-xl font-bold text-white">Week {week} Games</h2>
         {availableWeeks.length > 0 && (
@@ -1175,7 +1175,7 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
   };
 
   return (
-    <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+    <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <h2 className="text-xl font-bold text-white">Week {week} Picks</h2>
         {availableWeeks.length > 0 && (
@@ -1288,7 +1288,7 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
   });
 
   return (
-    <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+    <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <h2 className="text-xl font-bold text-white">Week {week} Picks</h2>
         <div className="flex flex-wrap gap-2">
@@ -1393,7 +1393,7 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
 function HowItWorksView({ league }) {
   return (
     <div className="space-y-6">
-      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+      <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
         <h2 className="text-xl font-bold text-white mb-4">How It Works</h2>
         
         <div className="space-y-6">
@@ -1451,7 +1451,7 @@ function HowItWorksView({ league }) {
         </div>
       </div>
 
-      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+      <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
         <h2 className="text-xl font-bold text-white mb-4">Quick Tips</h2>
         <ul className="text-purple-300/60 space-y-2">
           <li>• Put high confidence on picks you feel strongest about</li>
@@ -1547,7 +1547,7 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
 
   if (loading) {
     return (
-      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-6 text-center text-purple-300/60">
+      <div className={`${theme.cardBg} p-6 text-center text-purple-300/60`} style={theme.cardGlow}>
         Loading results...
       </div>
     );
@@ -1558,7 +1558,7 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
 
   return (
     <div className="space-y-6">
-      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+      <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h2 className="text-xl font-bold text-white">Week Results</h2>
           <select 
@@ -1611,7 +1611,7 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
         </div>
       </div>
 
-      <div className={`${theme.cardBg}`} style={theme.cardGlow} p-4 sm:p-6">
+      <div className={`${theme.cardBg} p-4 sm:p-6`} style={theme.cardGlow}>
         <h2 className="text-xl font-bold text-white mb-4">Season Totals</h2>
         <div className="space-y-3">
           {seasonTotals.sort((a, b) => b.seasonTotal - a.seasonTotal).map((player, i) => (
