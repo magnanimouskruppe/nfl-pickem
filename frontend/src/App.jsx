@@ -24,8 +24,8 @@ const theme = {
   select: 'bg-black/50 border border-purple-500/30 rounded-lg text-purple-300 focus:border-pink-500/50 focus:outline-none',
   
   // Status colors
-  success: 'bg-green-500/20 text-green-400 border border-green-500/50',
-  error: 'bg-red-500/20 text-red-400 border border-red-500/50',
+  success: 'bg-green-500/200/20 text-green-400 border border-green-500/50',
+  error: 'bg-red-500/200/20 text-red-400 border border-red-500/50',
   warning: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50',
   pending: 'bg-purple-500/20 text-purple-400 border border-purple-500/50',
 };
@@ -243,15 +243,16 @@ export default function App() {
               
               {showLeagueSwitcher && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowLeagueSwitcher(false)} />
-                  <div className="absolute top-full left-0 mt-2 w-64 bg-black/90 backdrop-blur rounded-xl border border-purple-500/30 z-20" style={{ boxShadow: '0 0 30px rgba(168,85,247,0.3)' }}>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowLeagueSwitcher(false)} />
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-black/95 backdrop-blur rounded-xl border border-purple-500/30 z-50" style={{ boxShadow: '0 0 30px rgba(168,85,247,0.3)' }}>
                     <div className="p-2">
                       <div className="text-xs font-medium text-purple-400 px-3 py-2">YOUR LEAGUES</div>
                       {allLeagues.map(l => (
                         <button
                           key={l.id}
-                          onClick={() => selectLeague(l.id)}
-                          className={`w-full text-left px-3 py-2 rounded-lg transition-all ${l.id === activeLeagueId ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30' : 'hover:bg-white/5'}`}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); selectLeague(l.id); }}
+                          className={`w-full text-left px-3 py-2 rounded-lg transition-all cursor-pointer ${l.id === activeLeagueId ? 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30' : 'hover:bg-white/10'}`}
                         >
                           <div className={`font-medium ${l.id === activeLeagueId ? 'text-pink-400' : 'text-white'}`}>{l.name}</div>
                           <div className="text-xs text-purple-300/60">{l.memberCount} members</div>
@@ -260,14 +261,16 @@ export default function App() {
                     </div>
                     <div className="border-t border-purple-500/30 p-2">
                       <button
-                        onClick={() => { setShowLeagueSwitcher(false); setView('joinLeague'); }}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-purple-300"
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowLeagueSwitcher(false); setView('joinLeague'); }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 text-purple-300 cursor-pointer"
                       >
                         + Join a League
                       </button>
                       <button
-                        onClick={() => { setShowLeagueSwitcher(false); setView('createLeague'); }}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-purple-300"
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowLeagueSwitcher(false); setView('createLeague'); }}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/10 text-purple-300 cursor-pointer"
                       >
                         + Create a League
                       </button>
@@ -931,7 +934,7 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
           <h2 className="text-xl font-bold text-white">Week {week} Scoreboard</h2>
           {availableWeeks.length > 0 && (
             <select 
-              className="border rounded px-3 py-1 text-base font-medium w-fit"
+              className={`${theme.select} px-3 py-1 text-base font-medium w-fit`}
               value={week}
               onChange={(e) => onWeekChange(parseInt(e.target.value))}
             >
@@ -943,12 +946,15 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
         </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData}>
-            <XAxis dataKey="name" />
-            <YAxis domain={[0, 55]} />
-            <Tooltip />
+            <XAxis dataKey="name" stroke="#a855f7" />
+            <YAxis domain={[0, 55]} stroke="#a855f7" />
+            <Tooltip 
+              contentStyle={{ backgroundColor: '#1a0533', border: '1px solid rgba(168,85,247,0.3)', borderRadius: '8px' }}
+              labelStyle={{ color: '#fff' }}
+            />
             <Legend />
-            <Bar dataKey="Current" stackId="a" fill="#3B82F6" />
-            <Bar dataKey="Remaining" stackId="a" fill="#FCD34D" />
+            <Bar dataKey="Current" stackId="a" fill="#a855f7" />
+            <Bar dataKey="Remaining" stackId="a" fill="#ec4899" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -958,11 +964,11 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b-2 border-purple-500/30">
-              <th className="text-left py-2 px-2 font-bold">Player</th>
-              <th className="text-center py-2 px-2 font-bold" colSpan={2}>Point Results</th>
-              <th className="text-center py-2 px-2 font-bold" colSpan={2}>Points vs Avg</th>
+              <th className="text-left py-2 px-2 font-bold text-purple-300">Player</th>
+              <th className="text-center py-2 px-2 font-bold text-purple-300" colSpan={2}>Point Results</th>
+              <th className="text-center py-2 px-2 font-bold text-purple-300" colSpan={2}>Points vs Avg</th>
               {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(conf => (
-                <th key={conf} className="text-center py-2 px-1 font-bold min-w-[80px]">{conf}</th>
+                <th key={conf} className="text-center py-2 px-1 font-bold text-purple-300 min-w-[80px]">{conf}</th>
               ))}
             </tr>
             <tr className="border-b border-purple-500/30 text-purple-300/60 text-xs">
@@ -983,13 +989,13 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
 
               return (
                 <tr key={player.id} className="border-b border-purple-500/20">
-                  <td className="py-2 px-2 font-semibold whitespace-nowrap">{player.name}</td>
-                  <td className="py-2 px-2 text-center">{player.current}</td>
-                  <td className="py-2 px-2 text-center">{player.potential}</td>
-                  <td className={`py-2 px-2 text-center ${parseFloat(vsAvgCurrent) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <td className="py-2 px-2 font-semibold whitespace-nowrap text-white">{player.name}</td>
+                  <td className="py-2 px-2 text-center text-white">{player.current}</td>
+                  <td className="py-2 px-2 text-center text-gray-400">{player.potential}</td>
+                  <td className={`py-2 px-2 text-center ${parseFloat(vsAvgCurrent) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {parseFloat(vsAvgCurrent) >= 0 ? '+' : ''}{vsAvgCurrent}
                   </td>
-                  <td className={`py-2 px-2 text-center ${parseFloat(vsAvgPotential) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <td className={`py-2 px-2 text-center ${parseFloat(vsAvgPotential) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {parseFloat(vsAvgPotential) >= 0 ? '+' : ''}{vsAvgPotential}
                   </td>
                   {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(conf => {
@@ -999,24 +1005,24 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
                     const isCurrentUser = player.id === currentUserId;
 
                     let bgColor = 'bg-black/30';
-                    let textColor = 'text-gray-400';
+                    let textColor = 'text-gray-500';
                     let content = '-';
 
                     if (isHidden && !isCurrentUser) {
                       content = '?';
-                      bgColor = 'bg-gray-100';
-                      textColor = 'text-gray-400';
+                      bgColor = 'bg-purple-500/20';
+                      textColor = 'text-purple-400';
                     } else if (pick) {
                       content = getPickLabel(game, pick.pick_type, pick.pick_value);
                       if (pick.correct === 1) {
-                        bgColor = 'bg-green-500/20';
+                        bgColor = 'bg-green-500/200/20';
                         textColor = 'text-green-400';
                       } else if (pick.correct === 0) {
-                        bgColor = 'bg-red-500/20';
+                        bgColor = 'bg-red-500/200/20';
                         textColor = 'text-red-400';
                       } else {
-                        bgColor = 'bg-blue-50';
-                        textColor = 'text-blue-700';
+                        bgColor = 'bg-yellow-500/20';
+                        textColor = 'text-yellow-400';
                       }
                     }
 
@@ -1030,12 +1036,12 @@ function GamecenterView({ games, allPicks, users, currentUserId, week, available
               );
             })}
             {/* Average row */}
-            <tr className="border-t-2 border-gray-300 bg-black/30 font-semibold">
-              <td className="py-2 px-2">Average</td>
-              <td className="py-2 px-2 text-center">{avgCurrent}</td>
-              <td className="py-2 px-2 text-center">{avgPotential}</td>
-              <td className="py-2 px-2 text-center">-</td>
-              <td className="py-2 px-2 text-center">-</td>
+            <tr className="border-t-2 border-purple-500/30 bg-black/30 font-semibold">
+              <td className="py-2 px-2 text-purple-300">Average</td>
+              <td className="py-2 px-2 text-center text-white">{avgCurrent}</td>
+              <td className="py-2 px-2 text-center text-gray-400">{avgPotential}</td>
+              <td className="py-2 px-2 text-center text-gray-500">-</td>
+              <td className="py-2 px-2 text-center text-gray-500">-</td>
               {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(conf => (
                 <td key={conf} className="py-2 px-1"></td>
               ))}
@@ -1068,7 +1074,7 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
         <h2 className="text-xl font-bold text-white">Week {week} Games</h2>
         {availableWeeks.length > 0 && (
           <select 
-            className="border rounded px-3 py-1 text-base font-medium w-fit"
+            className={`${theme.select} px-3 py-1 text-base font-medium w-fit`}
             value={week}
             onChange={(e) => onWeekChange(parseInt(e.target.value))}
           >
@@ -1082,10 +1088,10 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
         <table className="w-full">
           <thead>
             <tr className="border-b-2 border-purple-500/30">
-              <th className="text-left py-3 px-2">Matchup</th>
-              <th className="text-center py-3 px-2">Spread</th>
-              <th className="text-center py-3 px-2">Over/Under</th>
-              <th className="text-center py-3 px-2">Score</th>
+              <th className="text-left py-3 px-2 text-purple-300">Matchup</th>
+              <th className="text-center py-3 px-2 text-purple-300">Spread</th>
+              <th className="text-center py-3 px-2 text-purple-300">Over/Under</th>
+              <th className="text-center py-3 px-2 text-purple-300">Score</th>
             </tr>
           </thead>
           <tbody>
@@ -1096,27 +1102,27 @@ function GamesView({ games, week, availableWeeks, onWeekChange }) {
                 <tr key={game.id} className="border-b border-purple-500/20">
                   <td className="py-3 px-2">
                     <div className="flex flex-col">
-                      <span className="font-medium">{game.away_team}</span>
+                      <span className="font-medium text-white">{game.away_team}</span>
                       <span className="text-purple-300/60">@ {game.home_team}</span>
                     </div>
                   </td>
                   <td className="text-center py-3 px-2">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col text-gray-300">
                       <span>{game.away_team} {spreads.away}</span>
                       <span>{game.home_team} {spreads.home}</span>
                     </div>
                   </td>
                   <td className="text-center py-3 px-2">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col text-gray-300">
                       <span>O {game.over_under}</span>
                       <span>U {game.over_under}</span>
                     </div>
                   </td>
                   <td className="text-center py-3 px-2">
                     {score ? (
-                      <span className="font-medium">{score}</span>
+                      <span className="font-medium text-cyan-400">{score}</span>
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-gray-500">—</span>
                     )}
                   </td>
                 </tr>
@@ -1180,7 +1186,7 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
         <h2 className="text-xl font-bold text-white">Week {week} Picks</h2>
         {availableWeeks.length > 0 && (
           <select 
-            className="border rounded px-3 py-1 text-base font-medium w-fit"
+            className={`${theme.select} px-3 py-1 text-base font-medium w-fit`}
             value={week}
             onChange={(e) => onWeekChange(parseInt(e.target.value))}
           >
@@ -1194,11 +1200,11 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
       <div className="border-b-2 border-purple-500/30 pb-3 mb-4 hidden sm:block">
         <div className="flex items-center">
           <div className="w-16 text-center">
-            <div className="text-sm font-bold text-gray-300">Points</div>
+            <div className="text-sm font-bold text-purple-300">Points</div>
           </div>
           <div className="flex-1 grid grid-cols-2 gap-3 ml-4">
-            <div className="text-sm font-bold text-gray-300 text-center">Select Game</div>
-            <div className="text-sm font-bold text-gray-300 text-center">Select Pick</div>
+            <div className="text-sm font-bold text-purple-300 text-center">Select Game</div>
+            <div className="text-sm font-bold text-purple-300 text-center">Select Pick</div>
           </div>
         </div>
       </div>
@@ -1210,22 +1216,22 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
           const props = getPropsForGame(selGame);
 
           return (
-            <div key={conf} className="border rounded-lg p-4">
+            <div key={conf} className="border border-purple-500/30 rounded-lg p-4 bg-black/20">
               <div className="flex items-center">
                 <div className="w-16 flex justify-center">
-                  <div className="text-2xl font-bold text-gray-800">{conf}</div>
+                  <div className="text-2xl font-bold text-purple-400">{conf}</div>
                 </div>
                 {pick ? (
                   <>
                     <div className="flex-1 ml-4 mr-3">
-                      <div className={`rounded p-3 ${hasGameStarted(pick) ? 'bg-gray-100' : 'bg-blue-50'}`}>
-                        <div className="font-semibold text-sm">{pick.game?.away_team} @ {pick.game?.home_team}</div>
-                        <div className={`font-bold ${hasGameStarted(pick) ? 'text-purple-300/60' : 'text-blue-600'}`}>{getPickLabel(pick.game, pick.pickType, pick.pickValue)}</div>
-                        {hasGameStarted(pick) && <div className="text-xs text-purple-300/60 mt-1">Game started - locked</div>}
+                      <div className={`rounded-lg p-3 ${hasGameStarted(pick) ? 'bg-gray-800/50 border border-gray-600/30' : 'bg-purple-500/20 border border-purple-500/30'}`}>
+                        <div className="font-semibold text-sm text-white">{pick.game?.away_team} @ {pick.game?.home_team}</div>
+                        <div className={`font-bold ${hasGameStarted(pick) ? 'text-gray-400' : 'text-pink-400'}`}>{getPickLabel(pick.game, pick.pickType, pick.pickValue)}</div>
+                        {hasGameStarted(pick) && <div className="text-xs text-gray-500 mt-1">Game started - locked</div>}
                       </div>
                     </div>
                     {!hasGameStarted(pick) && (
-                      <button onClick={() => onClear(conf)} className="text-red-500 hover:text-red-400 text-sm">
+                      <button onClick={() => onClear(conf)} className="text-red-400 hover:text-red-300 text-sm">
                         Clear
                       </button>
                     )}
@@ -1233,7 +1239,7 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
                 ) : (
                   <div className="flex-1 grid grid-cols-2 gap-3 ml-4">
                     <select 
-                      className="w-full border rounded px-3 py-2 bg-white text-sm"
+                      className={`w-full ${theme.select} px-3 py-2 text-sm`}
                       value={selGame || ''}
                       onChange={(e) => setSelections({ ...selections, [conf]: +e.target.value })}
                     >
@@ -1243,7 +1249,7 @@ function MyPicksView({ games, myPicks, onPick, onClear, week, availableWeeks, on
                       ))}
                     </select>
                     <select 
-                      className={`w-full border rounded px-3 py-2 bg-white text-sm ${!selGame ? 'bg-gray-100' : ''}`}
+                      className={`w-full ${theme.select} px-3 py-2 text-sm ${!selGame ? 'opacity-50' : ''}`}
                       disabled={!selGame}
                       onChange={(e) => {
                         if (!e.target.value) return;
@@ -1304,7 +1310,7 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
             </select>
           )}
           <select 
-            className="border rounded px-3 py-1"
+            className={`${theme.select} px-3 py-1`}
             value={selectedPlayer}
             onChange={(e) => setSelectedPlayer(e.target.value)}
           >
@@ -1337,28 +1343,28 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
           let textColor = 'text-purple-300/60';
 
           if (pick?.correct === 1) {
-            bgColor = 'bg-green-50';
-            borderColor = 'border-green-200';
-            textColor = 'text-green-600';
+            bgColor = 'bg-green-500/20';
+            borderColor = 'border-green-500/50';
+            textColor = 'text-green-400';
           } else if (pick?.correct === 0) {
-            bgColor = 'bg-red-50';
-            borderColor = 'border-red-200';
-            textColor = 'text-red-600';
+            bgColor = 'bg-red-500/20';
+            borderColor = 'border-red-500/50';
+            textColor = 'text-red-400';
           } else if (pick && !isHidden) {
-            bgColor = 'bg-blue-50';
-            borderColor = 'border-blue-200';
-            textColor = 'text-blue-600';
+            bgColor = 'bg-yellow-500/20';
+            borderColor = 'border-yellow-500/50';
+            textColor = 'text-yellow-400';
           }
 
           return (
             <div key={conf} className={`border rounded-lg p-4 ${borderColor}`}>
               <div className="flex items-center">
                 <div className="w-16 flex justify-center">
-                  <div className="text-2xl font-bold text-gray-800">{conf}</div>
+                  <div className="text-2xl font-bold text-purple-400">{conf}</div>
                 </div>
                 <div className="flex-1 ml-4">
                   {isHidden ? (
-                    <div className="bg-gray-100 rounded p-3 text-center text-purple-300/60">
+                    <div className="bg-purple-500/20 rounded p-3 text-center text-purple-300/60">
                       Pick hidden until game starts
                     </div>
                   ) : !pick ? (
@@ -1370,17 +1376,17 @@ function OtherPicksView({ games, allPicks, users, currentUserId, week, available
                       <div className="font-semibold text-sm">{game?.away_team} @ {game?.home_team}</div>
                       <div className={`font-bold ${textColor}`}>{getPickLabel(game, pick.pick_type, pick.pick_value)}</div>
                       {pick.correct === 1 && (
-                        <div className="text-green-600 font-bold text-sm mt-1">âœ“ Won - {conf} points</div>
+                        <div className="text-green-400 font-bold text-sm mt-1">âœ“ Won - {conf} points</div>
                       )}
                       {pick.correct === 0 && (
-                        <div className="text-red-600 font-bold text-sm mt-1">âœ— Lost - 0 points</div>
+                        <div className="text-red-400 font-bold text-sm mt-1">âœ— Lost - 0 points</div>
                       )}
                     </div>
                   )}
                 </div>
-                {pick?.correct === 1 && <div className="text-green-600 font-bold ml-4">+{conf}</div>}
-                {pick?.correct === 0 && <div className="text-red-600 font-bold ml-4">+0</div>}
-                {pick && pick.correct === null && !isHidden && <div className="text-blue-600 font-bold ml-4">?</div>}
+                {pick?.correct === 1 && <div className="text-green-400 font-bold ml-4">+{conf}</div>}
+                {pick?.correct === 0 && <div className="text-red-400 font-bold ml-4">+0</div>}
+                {pick && pick.correct === null && !isHidden && <div className="text-yellow-400 font-bold ml-4">?</div>}
               </div>
             </div>
           );
@@ -1398,7 +1404,7 @@ function HowItWorksView({ league }) {
         
         <div className="space-y-6">
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">The Basics</h3>
+            <h3 className="font-semibold text-purple-400 mb-2">The Basics</h3>
             <p className="text-purple-300/60">
               Each week, you make <strong>10 picks</strong> against the spread or on over/unders. 
               You assign each pick a <strong>confidence level from 1-10</strong> (each number used exactly once). 
@@ -1407,7 +1413,7 @@ function HowItWorksView({ league }) {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Making Picks</h3>
+            <h3 className="font-semibold text-purple-400 mb-2">Making Picks</h3>
             <ul className="text-purple-300/60 space-y-1">
               <li>• <strong>Spread picks:</strong> Pick the favorite to win by more than the spread, or the underdog to cover</li>
               <li>• <strong>Over/Under picks:</strong> Pick whether the total points scored will be over or under the line</li>
@@ -1417,7 +1423,7 @@ function HowItWorksView({ league }) {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Scoring</h3>
+            <h3 className="font-semibold text-purple-400 mb-2">Scoring</h3>
             <ul className="text-purple-300/60 space-y-1">
               <li>• Correct pick = confidence points earned (1-10)</li>
               <li>• Wrong pick = 0 points</li>
@@ -1426,8 +1432,8 @@ function HowItWorksView({ league }) {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Weekly Payouts</h3>
-            <div className="bg-blue-50 rounded-lg p-4">
+            <h3 className="font-semibold text-purple-400 mb-2">Weekly Payouts</h3>
+            <div className="bg-yellow-500/20 rounded-lg p-4">
               <ul className="text-gray-300 space-y-1">
                 <li>• <strong>Points payout:</strong> ${league.dollarPerPoint} for every point above/below the weekly average</li>
                 <li>• <strong>Weekly bonus:</strong> Winner(s) collect ${league.weeklyBonus} from each non-winner</li>
@@ -1436,15 +1442,15 @@ function HowItWorksView({ league }) {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-800 mb-2">Example</h3>
+            <h3 className="font-semibold text-purple-400 mb-2">Example</h3>
             <div className="bg-black/30 rounded-lg p-4 space-y-2 text-purple-300/60">
               <p>
-                <span className="text-green-600">✓</span> You pick <strong>Chiefs -3.5</strong> with <strong>10 confidence</strong>. 
-                Chiefs win by 7. <span className="text-green-600 font-semibold">You earn 10 points!</span>
+                <span className="text-green-400">✓</span> You pick <strong>Chiefs -3.5</strong> with <strong>10 confidence</strong>. 
+                Chiefs win by 7. <span className="text-green-400 font-semibold">You earn 10 points!</span>
               </p>
               <p>
-                <span className="text-red-600">✗</span> You pick <strong>Over 45.5</strong> with <strong>2 confidence</strong>. 
-                Final score is 20-17 (37 total). <span className="text-red-600 font-semibold">You earn 0 points.</span>
+                <span className="text-red-400">✗</span> You pick <strong>Over 45.5</strong> with <strong>2 confidence</strong>. 
+                Final score is 20-17 (37 total). <span className="text-red-400 font-semibold">You earn 0 points.</span>
               </p>
             </div>
           </div>
@@ -1562,7 +1568,7 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
           <h2 className="text-xl font-bold text-white">Week Results</h2>
           <select 
-            className="border rounded px-3 py-1 bg-white w-fit"
+            className={`${theme.select} px-3 py-1 w-fit`}
             value={selectedWeek}
             onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
           >
@@ -1579,29 +1585,29 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Player</th>
-                <th className="text-right py-2">Points</th>
-                <th className="text-right py-2">Points Payout</th>
-                <th className="text-right py-2">Bonus Payout</th>
-                <th className="text-right py-2 font-bold">Total Weekly</th>
+              <tr className="border-b border-purple-500/30">
+                <th className="text-left py-2 text-purple-300">Player</th>
+                <th className="text-right py-2 text-purple-300">Points</th>
+                <th className="text-right py-2 text-purple-300">Points Payout</th>
+                <th className="text-right py-2 text-purple-300">Bonus Payout</th>
+                <th className="text-right py-2 text-purple-300 font-bold">Total Weekly</th>
               </tr>
             </thead>
             <tbody>
               {weeklyPayouts.sort((a, b) => b.weekScore - a.weekScore).map((player, i) => (
-                <tr key={player.id} className="border-b">
+                <tr key={player.id} className="border-b border-purple-500/20">
                   <td className="py-3">
-                    <span className="text-gray-400 font-bold">#{i + 1}</span>
-                    <span className="ml-2 font-semibold">{player.name}</span>
+                    <span className="text-purple-400 font-bold">#{i + 1}</span>
+                    <span className="ml-2 font-semibold text-white">{player.name}</span>
                   </td>
-                  <td className="text-right py-3 font-medium">{player.weekScore}</td>
-                  <td className={`text-right py-3 ${player.pointsPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <td className="text-right py-3 font-medium text-white">{player.weekScore}</td>
+                  <td className={`text-right py-3 ${player.pointsPayout >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatCurrency(player.pointsPayout)}
                   </td>
-                  <td className={`text-right py-3 ${player.bonusPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <td className={`text-right py-3 ${player.bonusPayout >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatCurrency(player.bonusPayout)}
                   </td>
-                  <td className={`text-right py-3 font-bold ${player.totalWeeklyPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <td className={`text-right py-3 font-bold ${player.totalWeeklyPayout >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatCurrency(player.totalWeeklyPayout)}
                   </td>
                 </tr>
@@ -1615,16 +1621,16 @@ function ResultsView({ league, leagueMembers, availableWeeks }) {
         <h2 className="text-xl font-bold text-white mb-4">Season Totals</h2>
         <div className="space-y-3">
           {seasonTotals.sort((a, b) => b.seasonTotal - a.seasonTotal).map((player, i) => (
-            <div key={player.id} className="border rounded-lg p-4 flex justify-between items-center">
+            <div key={player.id} className="border border-purple-500/30 rounded-lg p-4 flex justify-between items-center bg-black/20">
               <div className="flex items-center space-x-4">
-                <div className="text-2xl font-bold text-gray-400">#{i + 1}</div>
+                <div className="text-2xl font-bold text-purple-400">#{i + 1}</div>
                 <div>
-                  <div className="font-semibold">{player.name}</div>
+                  <div className="font-semibold text-white">{player.name}</div>
                   <div className="text-sm text-purple-300/60">Through {availableWeeks.length} weeks</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className={`text-xl font-bold ${player.seasonTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className={`text-xl font-bold ${player.seasonTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {formatCurrency(player.seasonTotal)}
                 </div>
                 <div className="text-sm text-purple-300/60">Season Total</div>
